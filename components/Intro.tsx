@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import headshot from '@/public/John_Hamlin_Headshot.jpg';
 import { motion } from 'framer-motion';
-import IntroContent from '@/lib/intro.mdx';
+import IntroContent from '@/content/intro.mdx';
 import Link from 'next/link';
 import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
 import { FaGithubSquare } from 'react-icons/fa';
