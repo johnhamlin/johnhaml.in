@@ -26,7 +26,7 @@ function Intro() {
               src={headshot}
               alt="Headshot of John Hamlin"
               priority={true}
-              className="h-48 w-48 rounded-full object-cover border-[0.35rem] border-white shadow-xl"
+              className="h-48 w-48 rounded-full border-[0.35rem] border-white object-cover shadow-xl"
             />
             <motion.span
               className="absolute bottom-0 left-0 text-7xl"
@@ -45,7 +45,7 @@ function Intro() {
         </div>
         {/* Leading changes the line spacing. Need the ! to overide the line spacing in prose-2xl */}
         <motion.div
-          className="px-4 mt-4 mb-10 font-medium prose prose-2xl prose-p:!leading-[1.5] sm:prose-p:text-4xl"
+          className="prose prose-2xl mb-10 mt-4 px-4 font-medium prose-p:!leading-[1.5] sm:prose-p:text-4xl"
           initial={{ opacity: 0, y: 100 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -65,26 +65,26 @@ function Intro() {
           {/* Contact Me Button */}
           <Link
             href={'#contact'}
-            className="flex items-center gap-2 py-3 text-white transition-all bg-gray-900 rounded-full outline-none group px-7 focus:scale-110 hover:scale-110 hover:bg-gray-950 active:scale-105"
+            className="group flex items-center gap-2 rounded-full bg-gray-900 px-7 py-3 text-white outline-none transition-all hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
           >
             Contact me{' '}
-            <BsArrowRight className="transition opacity-70 group-hover:translate-x-1" />
+            <BsArrowRight className="opacity-70 transition group-hover:translate-x-1" />
           </Link>
 
           {/* Resume Button */}
           <a
-            className="flex items-center gap-2 py-3 transition bg-white border rounded-full outline-none border-black/10 group px-7 focus:scale-110 hover:scale-110 active:scale-105"
+            className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
             download
           >
             Résumé
-            <HiDownload className="transition opacity-60 group-hover:scale-y-125" />
+            <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
           </a>
 
           {/* LinkedIn Button */}
           <a
             href="https://www.linkedin.com/in/hamlinjohn/"
-            className="flex items-center gap-2 p-4 bg-white rounded-full text-[1.35rem] border border-black/10 focus:scale-[1.15] hover:scale-[1.15] active:scale-105 transition text-gray-900 hover:text-gray-900"
+            className="flex items-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.35rem] text-gray-900 transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <BsLinkedin />
@@ -93,7 +93,7 @@ function Intro() {
           {/* GitHub Button */}
           <a
             href="https://github.com/johnhamlin"
-            className="flex items-center gap-2 p-4 bg-white rounded-full text-[1.5rem] border border-black/10 focus:scale-[1.15] hover:scale-[1.15] active:scale-105 transition text-gray700 hover:text-gray-900"
+            className="text-gray700 flex items-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.5rem] transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <FaGithubSquare />
