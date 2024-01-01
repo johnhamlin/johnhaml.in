@@ -11,7 +11,10 @@ import { HiDownload } from 'react-icons/hi';
 
 function Intro() {
   return (
-    <section className="mb-28 max-w-[50rem] text-center sm:mb-0">
+    <section
+      id="home"
+      className="mb-28 max-w-[50rem] scroll-mt-[100rem] text-center sm:mb-0"
+    >
       <div className="flex flex-col items-center justify-center">
         <div className="relative">
           <motion.div
@@ -64,21 +67,21 @@ function Intro() {
         >
           {/* Contact Me Button */}
           <Link
-            href={'#contact'}
-            className="group flex items-center gap-2 rounded-full bg-gray-900 px-7 py-3 text-white outline-none transition-all hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
+            href={'mailto:johnhamlin@gmail.com?subject=Hello%20John!'}
+            className="flex items-center gap-2 py-3 text-white transition-all bg-gray-900 rounded-full outline-none group px-7 hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
           >
-            Contact me{' '}
-            <BsArrowRight className="opacity-70 transition group-hover:translate-x-1" />
+            Email me{' '}
+            <BsArrowRight className="transition opacity-70 group-hover:translate-x-1" />
           </Link>
 
           {/* Resume Button */}
           <a
-            className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
+            className="flex items-center gap-2 py-3 transition bg-white border rounded-full outline-none group border-black/10 px-7 hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
             download
           >
             Résumé
-            <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
+            <HiDownload className="transition opacity-60 group-hover:scale-y-125" />
           </a>
 
           {/* LinkedIn Button */}
