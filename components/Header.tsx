@@ -3,8 +3,12 @@
 import { motion } from 'framer-motion';
 import { links } from '@/lib/data';
 import Link from 'next/link';
+import { useState } from 'react';
+import clsx from 'clsx';
 
 function Header() {
+  const [activeSection, setActiveSection] = useState('Home');
+
   return (
     // z-index to make always on top
     <header className="relative z-[999]">
@@ -26,10 +30,29 @@ function Header() {
               animate={{ y: 0, opacity: 1 }}
             >
               <Link
-                className="flex w-full items-center justify-center px-3 py-3 transition hover:text-gray-950"
+                className={clsx(
+                  'flex w-full items-center justify-center px-3 py-3 transition hover:text-gray-950',
+                  {
+                    'text-gray-950': activeSection === link.name,
+                  },
+                )}
                 href={link.hash}
+                onClick={() => setActiveSection(link.name)}
               >
                 {link.name}
+
+                {/* Active Section Indicator */}
+                {activeSection === link.name && (
+                  <motion.span
+                    className="absolute inset-0 -z-10 rounded-full bg-gray-100"
+                    layoutId="activeSection"
+                    transition={{
+                      type: 'spring',
+                      stiffness: 380,
+                      damping: 30,
+                    }}
+                  ></motion.span>
+                )}
               </Link>
             </motion.li>
           ))}
