@@ -3,11 +3,11 @@
 import { motion } from 'framer-motion';
 import { links } from '@/lib/data';
 import Link from 'next/link';
-import { useState } from 'react';
 import clsx from 'clsx';
+import { useActiveSectionContext } from '@/context/ActiveSectionContextProvider';
 
 function Header() {
-  const [activeSection, setActiveSection] = useState('Home');
+  const { activeSection, setActiveSection } = useActiveSectionContext();
 
   return (
     // z-index to make always on top
