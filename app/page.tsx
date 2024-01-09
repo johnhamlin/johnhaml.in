@@ -4,6 +4,7 @@ import Intro from '@/components/Intro';
 import About from '@/components/About';
 import SectionDivider from '@/components/SectionDivider';
 import Projects from '@/components/Projects';
+import Skills from '@/components/Skills';
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
         <About />
       </motion.div>
       <Projects />
+      <Skills />
     </main>
   );
 }
