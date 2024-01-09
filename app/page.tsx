@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 import Intro from '@/components/Intro';
-import About from '@/content/about.mdx';
+import About from '@/components/About';
 import SectionDivider from '@/components/SectionDivider';
 import Projects from '@/components/Projects';
 
