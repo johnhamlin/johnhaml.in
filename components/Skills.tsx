@@ -1,6 +1,6 @@
 'use client';
 
-import { skillsData } from '@/lib/data';
+import { skillsData } from '@/content/skills';
 import SectionHeading from './SectionHeading';
 import { useSectionInView } from '@/hooks/useSectionInView';
 import { motion } from 'framer-motion';
@@ -14,7 +14,7 @@ const fadeInAnimationVariants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.07 * index,
+      duration: 0.06 * index,
     },
   }),
 };
