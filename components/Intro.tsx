@@ -8,10 +8,14 @@ import Link from 'next/link';
 import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
 import { FaGithubSquare } from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
+import { useSectionInView } from '@/hooks/useSectionInView';
 
 function Intro() {
+  const { ref } = useSectionInView('Home', 0.5);
+
   return (
     <section
+      ref={ref}
       id="home"
       className="mb-28 max-w-[50rem] scroll-mt-[100rem] text-center sm:mb-0"
     >
@@ -46,7 +50,7 @@ function Intro() {
             </motion.span>
           </motion.div>
         </div>
-        {/* Leading changes the line spacing. Need the ! to overide the line spacing in prose-2xl */}
+        {/* Leading changes the line spacing. Need the ! to override the line spacing in prose-2xl */}
         <motion.div
           className="prose prose-2xl mb-10 mt-4 px-4 font-medium prose-p:!leading-[1.5] sm:prose-p:text-4xl"
           initial={{ opacity: 0, y: 100 }}
@@ -68,20 +72,20 @@ function Intro() {
           {/* Contact Me Button */}
           <Link
             href={'mailto:johnhamlin@gmail.com?subject=Hello%20John!'}
-            className="flex items-center gap-2 py-3 text-white transition-all bg-gray-900 rounded-full outline-none group px-7 hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
+            className="group flex items-center gap-2 rounded-full bg-gray-900 px-7 py-3 text-white outline-none transition-all hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
           >
             Email me{' '}
-            <BsArrowRight className="transition opacity-70 group-hover:translate-x-1" />
+            <BsArrowRight className="opacity-70 transition group-hover:translate-x-1" />
           </Link>
 
           {/* Resume Button */}
           <a
-            className="flex items-center gap-2 py-3 transition bg-white border rounded-full outline-none group border-black/10 px-7 hover:scale-110 focus:scale-110 active:scale-105"
+            className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
             download
           >
             Résumé
-            <HiDownload className="transition opacity-60 group-hover:scale-y-125" />
+            <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
           </a>
 
           {/* LinkedIn Button */}

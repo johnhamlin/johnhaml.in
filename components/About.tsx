@@ -2,20 +2,10 @@
 
 import AboutContent from '@/content/about.mdx';
 import { motion } from 'framer-motion';
-
-import { useActiveSectionContext } from '@/context/ActiveSectionContextProvider';
-import { useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useSectionInView } from '@/hooks/useSectionInView';
 
 function About() {
-  const { ref, inView } = useInView();
-  const { setActiveSection } = useActiveSectionContext();
-
-  useEffect(() => {
-    if (inView) {
-      setActiveSection('About');
-    }
-  }, [inView, setActiveSection]);
+  const { ref } = useSectionInView('About');
 
   return (
     <motion.section
