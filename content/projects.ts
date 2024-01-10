@@ -21,7 +21,7 @@ export const projectsData = [
   {
     title: 'ScrewTapp',
     description:
-      'There are lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
+      'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
     imageUrl: screwtappImg,
   },
