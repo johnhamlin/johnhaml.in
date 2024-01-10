@@ -23,5 +23,6 @@ export const skillsData = [
   'Docker',
   'AWS',
   'Azure',
+  'GitHub Actions',
   'React Testing Library',
 ] as const;

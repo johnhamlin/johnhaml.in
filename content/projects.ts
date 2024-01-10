@@ -42,6 +42,6 @@ export const projectsData = [
       'In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys.',
     tags: ['Swaddling', 'Coffee', 'Diapers', 'Love', 'Earplugs'],
     imageUrl: version2Img,
-    url: '',
+    url: null,
   },
 ] as const;
