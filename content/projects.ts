@@ -1,27 +1,35 @@
-import corpcommentImg from '@/public/corpcomment.png';
-import rmtdevImg from '@/public/rmtdev.png';
-import wordanalyticsImg from '@/public/wordanalytics.png';
+import xkiteImg from '@/public/xkite.png';
+import screwtappImg from '@/public/screwtapp.png';
+import version2Img from '@/public/version-2.png';
 
 export const projectsData = [
   {
-    title: 'CorpComment',
+    title: 'xkite',
     description:
-      'I worked as a full-stack developer on this startup project for 2 years. Users can give public feedback to companies.',
-    tags: ['React', 'Next.js', 'MongoDB', 'Tailwind', 'Prisma'],
-    imageUrl: corpcommentImg,
+      'Open source GUI for Apache Kafka prototyping, testing and deployment. Spins up containerized Kafka clusters, runs custom tests, and exports configs for deployment',
+    tags: [
+      'Next.js',
+      'Apache Kafka',
+      'Prometheus',
+      'Grafana',
+      'Docker',
+      'Java',
+      'Spring Boot',
+    ],
+    imageUrl: xkiteImg,
   },
   {
-    title: 'rmtDev',
+    title: 'ScrewTapp',
     description:
-      'Job board for remote developer jobs. I was the front-end developer. It has features like filtering, sorting and pagination.',
-    tags: ['React', 'TypeScript', 'Next.js', 'Tailwind', 'Redux'],
-    imageUrl: rmtdevImg,
+      'There are lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
+    tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
+    imageUrl: screwtappImg,
   },
   {
-    title: 'Word Analytics',
+    title: 'Me v2.0',
     description:
-      'A public web app for quick analytics on text. It shows word count, character count and social media post limits.',
-    tags: ['React', 'Next.js', 'SQL', 'Tailwind', 'Framer'],
-    imageUrl: wordanalyticsImg,
+      'In 2023, I took some time off to welcome twin boys and get to know the little guys.',
+    tags: ['Swaddling', 'Coffee', 'Diapers', 'Love', 'Earplugs'],
+    imageUrl: version2Img,
   },
 ] as const;
