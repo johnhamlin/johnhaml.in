@@ -18,6 +18,7 @@ export const projectsData = [
       'Spring Boot',
     ],
     imageUrl: xkiteImg,
+    url: 'https://xkite.io/',
   },
   {
     title: 'ScrewTapp',
@@ -25,6 +26,7 @@ export const projectsData = [
       'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
     imageUrl: screwtappImg,
+    url: 'https://github.com/johnhamlin/screwtapp',
   },
   {
     title: 'This Site',
@@ -32,12 +34,14 @@ export const projectsData = [
       'Your classic, over-engineered personal portfolio site, built from scratch with my favorite tools and a few I wanted to try out.',
     tags: ['Next.js', 'TypeScript', 'MDX', 'Tailwind CSS', 'Framer Motion'],
     imageUrl: thisSiteImg,
+    url: 'https://github.com/johnhamlin/johnhaml.in',
   },
   {
     title: 'Me v2.0',
     description:
-      'In 2023, I took some time off to welcome twin boys and get to know the little guys.',
+      'In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys.',
     tags: ['Swaddling', 'Coffee', 'Diapers', 'Love', 'Earplugs'],
     imageUrl: version2Img,
+    url: '',
   },
 ] as const;

@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 function Footer() {
   const currentYear = new Date().getFullYear();
 
@@ -8,32 +10,32 @@ function Footer() {
       </small>
       <p className="text-xs">
         Built with{' '}
-        <a
+        <Link
           href="https://nextjs.org/"
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
         >
           Next.js 14
-        </a>
+        </Link>
         {', '}
-        <a
+        <Link
           href="https://tailwindcss.com/"
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
         >
           Tailwind CSS
-        </a>
+        </Link>
         {' and '}
-        <a
+        <Link
           href="https://www.typescriptlang.org/"
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
         >
           TypeScript
-        </a>
+        </Link>
         .
       </p>
     </footer>

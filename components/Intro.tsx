@@ -79,34 +79,34 @@ function Intro() {
           </Link>
 
           {/* Resume Button */}
-          <a
+          <Link
             className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
-            download
+            // download="John_Hamlin_Resume.pdf"
           >
             Résumé
             <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
-          </a>
+          </Link>
 
           {/* LinkedIn Button */}
-          <a
+          <Link
             href="https://www.linkedin.com/in/hamlinjohn/"
             className="flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white p-4  text-[1.35rem] text-gray-900 transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <BsLinkedin />
             <span className="text-lg sm:hidden">LinkedIn</span>
-          </a>
+          </Link>
 
           {/* GitHub Button */}
-          <a
+          <Link
             href="https://github.com/johnhamlin"
             className="text-gray700 flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.5rem] transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <FaGithubSquare />
             <span className="text-lg sm:hidden">GitHub</span>
-          </a>
+          </Link>
         </motion.div>
       </div>
     </section>
