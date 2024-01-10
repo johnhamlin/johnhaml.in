@@ -1,6 +1,7 @@
 import xkiteImg from '@/public/xkite.png';
 import screwtappImg from '@/public/screwtapp.png';
-import version2Img from '@/public/version-2.png';
+import version2Img from '@/public/version-2.jpg';
+import thisSiteImg from '@/public/this-site.jpg';
 
 export const projectsData = [
   {
@@ -24,6 +25,13 @@ export const projectsData = [
       'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
     imageUrl: screwtappImg,
+  },
+  {
+    title: 'This Site',
+    description:
+      'Your classic, over-engineered personal portfolio site, built from scratch with my favorite tools and a few I wanted to try out.',
+    tags: ['Next.js', 'TypeScript', 'MDX', 'Tailwind CSS', 'Framer Motion'],
+    imageUrl: thisSiteImg,
   },
   {
     title: 'Me v2.0',
