@@ -91,19 +91,21 @@ function Intro() {
           {/* LinkedIn Button */}
           <a
             href="https://www.linkedin.com/in/hamlinjohn/"
-            className="flex items-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.35rem] text-gray-900 transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
+            className="flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white p-4  text-[1.35rem] text-gray-900 transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <BsLinkedin />
+            <span className="text-lg sm:hidden">LinkedIn</span>
           </a>
 
           {/* GitHub Button */}
           <a
             href="https://github.com/johnhamlin"
-            className="text-gray700 flex items-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.5rem] transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
+            className="text-gray700 flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.5rem] transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105"
             target="_blank"
           >
             <FaGithubSquare />
+            <span className="text-lg sm:hidden">GitHub</span>
           </a>
         </motion.div>
       </div>
