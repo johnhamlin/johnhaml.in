@@ -20,7 +20,7 @@ export const experienceData = [
     title: 'Senior Communications Consultant',
     location: 'Wake County & Town of Clayton',
     description:
-      "Built and maintained websites for two local governments, including N.C.'s largest county. Administered 60+ social media accounts. Wrote and edited news releases, newsletters, speeches, and more",
+      "Built and maintained websites for two local governments, including N.C.'s largest county. Administered 60+ social media accounts. Wrote and edited news releases, newsletters, speeches, and more.",
     icon: React.createElement(FaReact),
     date: '2015 - 2022',
   },
