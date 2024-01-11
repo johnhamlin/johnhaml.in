@@ -40,23 +40,40 @@ function Project(props: ProjectProps) {
   );
 }
 
-function ProjectCard({ title, description, tags, imageUrl }: ProjectProps) {
+function ProjectCard({
+  title,
+  description,
+  tags,
+  imageUrl,
+  imageMobileUrl,
+}: ProjectProps) {
   return (
     <div className=" relative max-w-[42rem] overflow-hidden rounded-xl border border-black/5 bg-gray-100  transition  hover:bg-gray-200 sm:min-h-[18rem] sm:pr-8 sm:group-even:pl-8">
-      {/* Text Container on the left */}
-      <div className="flex h-full flex-col px-5 pb-7 pt-4 sm:max-w-[50%] sm:pl-10 sm:pr-2 sm:pt-10 sm:group-even:ml-[18rem]">
-        <h3 className="text-2xl font-semibold">{title}</h3>
-        <p className="mt-2 leading-relaxed text-gray-700">{description}</p>
-        <ul className="mb-0 mt-4 flex flex-wrap gap-2 self-end sm:mt-5">
-          {tags.map((tag) => (
-            <li
-              className="rounded-full bg-black/[0.7] px-3 py-1 text-[0.7rem] uppercase tracking-wider text-white"
-              key={tag}
-            >
-              {tag}
-            </li>
-          ))}
-        </ul>
+      {/* Text Container on the left for desktop */}
+      <div className="flex h-full flex-col pb-7  ">
+        {/* Image for mobile version on top */}
+        <div className="mb-2 h-[12rem] w-full overflow-hidden object-cover sm:hidden">
+          <Image
+            src={imageMobileUrl ? imageMobileUrl : imageUrl}
+            alt={title}
+            quality={95}
+            className="shrink-0"
+          />
+        </div>
+        <div className="px-5 pt-4 sm:max-w-[50%] sm:pl-10 sm:pr-2 sm:pt-10 sm:group-even:ml-[18rem]">
+          <h3 className="text-2xl font-semibold">{title}</h3>
+          <p className="mt-2 leading-relaxed text-gray-700">{description}</p>
+          <ul className="mb-0 mt-4 flex flex-wrap gap-2 self-end sm:mt-5">
+            {tags.map((tag) => (
+              <li
+                className="rounded-full bg-black/[0.7] px-3 py-1 text-[0.7rem] uppercase tracking-wider text-white"
+                key={tag}
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       {/* Image on the right */}

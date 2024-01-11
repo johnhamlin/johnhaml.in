@@ -1,6 +1,7 @@
 import xkiteImg from '@/public/xkite.png';
 import screwtappImg from '@/public/screwtapp.png';
 import version2Img from '@/public/version-2.jpg';
+import version2MobileImg from '@/public/version-2-mobile.jpg';
 import thisSiteImg from '@/public/this-site.jpg';
 
 export const projectsData = [
@@ -18,6 +19,7 @@ export const projectsData = [
       'Spring Boot',
     ],
     imageUrl: xkiteImg,
+    imageMobileUrl: null,
     url: 'https://xkite.io/',
   },
   {
@@ -26,6 +28,7 @@ export const projectsData = [
       'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
     imageUrl: screwtappImg,
+    imageMobileUrl: null,
     url: 'https://github.com/johnhamlin/screwtapp',
   },
   {
@@ -34,6 +37,7 @@ export const projectsData = [
       'Your classic, over-engineered personal portfolio site, built from scratch with my favorite tools and a few I wanted to try out.',
     tags: ['Next.js', 'TypeScript', 'MDX', 'Tailwind CSS', 'Framer Motion'],
     imageUrl: thisSiteImg,
+    imageMobileUrl: null,
     url: 'https://github.com/johnhamlin/johnhaml.in',
   },
   {
@@ -42,6 +46,7 @@ export const projectsData = [
       'In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys.',
     tags: ['Swaddling', 'Coffee', 'Diapers', 'Love', 'Earplugs'],
     imageUrl: version2Img,
+    imageMobileUrl: version2MobileImg,
     url: null,
   },
 ] as const;
