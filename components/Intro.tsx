@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import headshot from '@/public/John_Hamlin_Headshot.jpg';
-import { motion } from 'framer-motion';
+import { motion, useAnimate } from 'framer-motion';
 import IntroContent from '@/content/intro.mdx';
 import Link from 'next/link';
 import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
@@ -13,6 +13,19 @@ import { useSectionInView } from '@/hooks/useSectionInView';
 function Intro() {
   const { ref } = useSectionInView('Home', 0.5);
 
+  // Animate the wave emoji on hover/click
+  const [scope, animate] = useAnimate();
+  const animateWave = () => {
+    animate(scope.current, {
+      rotate: [0, 10, -10, 10, 0],
+      transition: {
+        type: 'spring',
+        stiffness: 125,
+        duration: 0.7,
+      },
+    });
+  };
+
   return (
     <section
       ref={ref}
@@ -22,6 +35,8 @@ function Intro() {
       <div className="flex flex-col items-center justify-center">
         <div className="relative">
           <motion.div
+            onClick={animateWave}
+            onHoverStart={animateWave}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{
@@ -36,6 +51,7 @@ function Intro() {
               className="h-48 w-48 rounded-full border-[0.35rem] border-white object-cover shadow-xl"
             />
             <motion.span
+              ref={scope} // Framer Motion ref for useAnimate on click/hover
               className="absolute bottom-0 left-0 text-7xl"
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
