@@ -48,7 +48,7 @@ function Header() {
                 {/* Active Section Indicator */}
                 {activeSection === link.name && (
                   <motion.span
-                    className="absolute inset-0 -z-10 rounded-full bg-gray-100"
+                    className="absolute inset-0 -z-10 rounded-full bg-gray-200"
                     layoutId="activeSection"
                     transition={{
                       type: 'spring',
