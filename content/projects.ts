@@ -25,7 +25,7 @@ export const projectsData = [
   {
     title: 'ScrewTapp',
     description:
-      'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one. Currently in alpha, but you can check out the code on GitHub.',
+      'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one. Currently in alpha, but you can check out the code on my GitHub.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
     imageUrl: screwtappImg,
     imageMobileUrl: null,
