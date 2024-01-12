@@ -42,7 +42,7 @@ export const projectsData = [
   },
   {
     title: 'Me v2.0',
-    description: `In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys. It was a blast, and now I'm ready to get back to work.`,
+    description: `In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys. We had a blast, and now I'm ready to get back to work.`,
     tags: ['Swaddling', 'Coffee', 'Diapers', 'Love', 'Earplugs'],
     imageUrl: version2Img,
     imageMobileUrl: version2MobileImg,
