@@ -9,6 +9,7 @@ import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
 import { FaGithubSquare } from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
 import { useSectionInView } from '@/hooks/useSectionInView';
+import TrackedLink from './TrackedLink';
 
 function Intro() {
   const { ref } = useSectionInView('Home', 0.5);
@@ -95,14 +96,15 @@ function Intro() {
           </Link>
 
           {/* Resume Button */}
-          <Link
+          <TrackedLink
             className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
+            trackingId="Resume Downloaded"
             // download="John_Hamlin_Resume.pdf"
           >
             Résumé
             <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
-          </Link>
+          </TrackedLink>
 
           {/* LinkedIn Button */}
           <Link
