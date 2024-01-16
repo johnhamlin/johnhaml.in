@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: "John Hamlin's Portfolio",
   description: 'John Hamlin is a full-stack developer.',
-  metadataBase: new URL('https://johnhaml.in'),
+  metadataBase: new URL('https://www.johnhaml.in'),
 };
 
 export default function RootLayout({
