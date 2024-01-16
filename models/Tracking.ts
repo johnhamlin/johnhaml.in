@@ -30,6 +30,7 @@ export interface Tracking extends mongoose.Document {
   _id: string;
   tag: string;
   userAgent: UserAgent;
+  ip: string;
   // userAgent: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +39,10 @@ export interface Tracking extends mongoose.Document {
 const TrackingSchema = new mongoose.Schema(
   {
     tag: {
+      type: String,
+      required: true,
+    },
+    ip: {
       type: String,
       required: true,
     },
