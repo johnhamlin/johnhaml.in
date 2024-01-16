@@ -9,7 +9,7 @@ export async function createTracking(tag: string) {
   console.log(userAgentData);
   await dbConnect();
   try {
-    await Tracking.create({ tag, userAgent: JSON.stringify(userAgentData) });
+    await Tracking.create({ tag, userAgent: userAgentData });
   } catch (e) {
     console.error(e);
   }
