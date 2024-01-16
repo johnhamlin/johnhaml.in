@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { UserAgent } from 'next/dist/server/web/spec-extension/user-agent';
 
 interface UserAgent {
   isBot: boolean;
@@ -52,6 +51,7 @@ const TrackingSchema = new mongoose.Schema(
       },
       device: {
         model: String,
+        // Must format this way because "type" is a reserved word in mongoose
         type: { type: String },
         vendor: String,
       },
