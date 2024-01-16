@@ -99,7 +99,7 @@ function Intro() {
           <TrackedLink
             className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105"
             href="/John_Hamlin_Resume.pdf"
-            trackingId="Resume Downloaded"
+            tag="Resume Downloaded"
             // download="John_Hamlin_Resume.pdf"
           >
             Résumé

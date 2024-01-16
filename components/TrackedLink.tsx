@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import { createTracking } from '@/lib/actions';
 
 type TrackedLinkProps = {
   href: string;
   className?: string;
-  trackingId: string;
+  tag: string;
   children: React.ReactNode;
 };
 
@@ -11,14 +12,10 @@ function TrackedLink({
   href,
   className = '',
   children,
-  trackingId,
+  tag,
 }: TrackedLinkProps) {
   return (
-    <Link
-      className={className}
-      href={href}
-      onClick={() => console.log('Clicked!')}
-    >
+    <Link className={className} href={href} onClick={() => createTracking(tag)}>
       {children}
     </Link>
   );
