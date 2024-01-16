@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { UserAgent } from 'next/dist/server/web/spec-extension/user-agent';
+// import { UserAgent } from 'next/dist/server/web/spec-extension/user-agent';
 
 export interface Tracking extends mongoose.Document {
   _id: string;
