@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { IPinfo } from 'node-ipinfo';
 
 interface UserAgent {
   isBot: boolean;
@@ -31,6 +32,7 @@ export interface Tracking extends mongoose.Document {
   tag: string;
   userAgent: UserAgent;
   ip: string;
+  ipInfo: IPinfo;
   // userAgent: string;
   createdAt: Date;
   updatedAt: Date;
@@ -45,6 +47,70 @@ const TrackingSchema = new mongoose.Schema(
     ip: {
       type: String,
       required: true,
+    },
+    ipInfo: {
+      ip: String,
+      hostname: String,
+      bogon: Boolean,
+      anycast: Boolean,
+      city: String,
+      region: String,
+      country: String,
+      countryFlag: {
+        emoji: String,
+        unicode: String,
+      },
+      countryFlagURL: String,
+      countryCurrency: {
+        code: String,
+        symbol: String,
+      },
+      continent: {
+        code: String,
+        name: String,
+      },
+      isEU: Boolean,
+      countryCode: String,
+      loc: String,
+      org: String,
+      postal: String,
+      timezone: String,
+      asn: {
+        asn: String,
+        name: String,
+        domain: String,
+        route: String,
+        type: String,
+      },
+      company: {
+        name: String,
+        domain: String,
+        type: String,
+      },
+      carrier: {
+        name: String,
+        mcc: String,
+        mnc: String,
+      },
+      privacy: {
+        vpn: Boolean,
+        proxy: Boolean,
+        tor: Boolean,
+        hosting: Boolean,
+      },
+      abuse: {
+        address: String,
+        country: String,
+        email: String,
+        name: String,
+        network: String,
+        phone: String,
+      },
+      domains: {
+        ip: String,
+        total: Number,
+        domains: [String],
+      },
     },
     userAgent: {
       isBot: { type: Boolean, required: true },
