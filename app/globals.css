@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Change the color of the line in the Experence timeline component */
 html {
   --line-color: #e5e7eb;
+}
+
+html.dark {
+  --line-color: rgba(229, 231, 235, 0.2);
 }

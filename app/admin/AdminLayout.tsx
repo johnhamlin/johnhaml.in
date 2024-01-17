@@ -5,7 +5,6 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [first, setFirst] = useState('John');
   return (
     <main>
       {/* Include shared UI here e.g. a header or sidebar */}

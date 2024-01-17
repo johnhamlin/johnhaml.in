@@ -12,7 +12,7 @@ function About() {
       ref={ref}
       id="about"
       // TODO: Update these classes now that we don't need to use?
-      className="prose mb-28 max-w-[45rem] scroll-mt-28 text-center leading-8 prose-p:mb-3 sm:mb-40"
+      className="prose mb-28 max-w-[45rem] scroll-mt-28 text-center leading-8 dark:prose-invert prose-p:mb-3 sm:mb-40"
     >
       <AboutContent />
     </motion.section>

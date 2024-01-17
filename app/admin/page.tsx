@@ -1,4 +1,4 @@
 function Admin() {
-  return <div>If you're seeing this, the it's working!</div>;
+  return <div>If you see this, the it works!</div>;
 }
 export default Admin;
