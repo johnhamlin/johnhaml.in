@@ -1,14 +1,14 @@
-import xkiteImg from '@/public/xkite.png';
 import screwtappImg from '@/public/screwtapp.png';
-import version2Img from '@/public/version-2.jpg';
-import version2MobileImg from '@/public/version-2-mobile.jpg';
 import thisSiteImg from '@/public/this-site.jpg';
+import version2MobileImg from '@/public/version-2-mobile.jpg';
+import version2Img from '@/public/version-2.jpg';
+import xkiteImg from '@/public/xkite.png';
 
 export const projectsData = [
   {
     title: 'xkite',
     description:
-      'Open source GUI for Apache Kafka prototyping, testing and deployment. Spins up containerized Kafka clusters, runs custom tests, and exports configs for deployment',
+      'Open source GUI for Apache Kafka prototyping, testing and deployment. Spins up containerized Kafka clusters, runs custom tests, and exports configs for deployment.',
     tags: [
       'Next.js',
       'Apache Kafka',
