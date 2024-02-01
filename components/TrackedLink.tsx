@@ -1,22 +1,14 @@
-import Link from 'next/link';
 import { createTracking } from '@/lib/actions';
+import Link from 'next/link';
 
-type TrackedLinkProps = {
-  href: string;
-  className?: string;
+type TrackedLinkProps = React.ComponentPropsWithoutRef<typeof Link> & {
   tag: string;
-  children: React.ReactNode;
 };
 
-function TrackedLink({
-  href,
-  className = '',
-  children,
-  tag,
-}: TrackedLinkProps) {
+function TrackedLink(props: TrackedLinkProps) {
   return (
-    <Link className={className} href={href} onClick={() => createTracking(tag)}>
-      {children}
+    <Link {...props} onClick={() => createTracking(props.tag)}>
+      {props.children}
     </Link>
   );
 }

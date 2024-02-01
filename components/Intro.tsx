@@ -1,14 +1,14 @@
 'use client'; // needed for framer-motion
 
-import Image from 'next/image';
+import IntroContent from '@/content/intro.mdx';
+import { useSectionInView } from '@/hooks/useSectionInView';
 import headshot from '@/public/John_Hamlin_Headshot.jpg';
 import { motion, useAnimate } from 'framer-motion';
-import IntroContent from '@/content/intro.mdx';
+import Image from 'next/image';
 import Link from 'next/link';
 import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
 import { FaGithubSquare } from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
-import { useSectionInView } from '@/hooks/useSectionInView';
 import TrackedLink from './TrackedLink';
 
 function Intro() {
@@ -100,7 +100,8 @@ function Intro() {
             className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105 dark:bg-white/10"
             href="/John_Hamlin_Resume.pdf"
             tag="Resume Downloaded"
-            // download="John_Hamlin_Resume.pdf"
+            download="John_Hamlin_Resume.pdf"
+            target="_blank"
           >
             Résumé
             <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
