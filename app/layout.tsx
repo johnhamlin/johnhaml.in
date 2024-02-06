@@ -12,7 +12,6 @@ import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
-console.log(GOOGLE_ANALYTICS_ID);
 
 export const metadata: Metadata = {
   title: "John Hamlin's Portfolio",
