@@ -16,7 +16,7 @@ const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
 export const metadata: Metadata = {
   title: "John Hamlin's Portfolio",
   description: 'John Hamlin is a full-stack developer.',
-  // metadataBase: new URL('https://www.johnhaml.in'),
+  metadataBase: new URL('https://johnhaml.in'),
 };
 
 export default function RootLayout({
