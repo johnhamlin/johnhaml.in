@@ -9,6 +9,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import Head from 'next/head';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
@@ -138,13 +139,13 @@ export const metadata: Metadata = {
   ],
   metadataBase: new URL('https://johnhaml.in'),
 
-  openGraph: {
-    title: "John Hamlin's Portfolio",
-    description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
-    images: '/opengraph-image.jpg',
-    url: 'https://johnhaml.in',
-    type: 'website',
-  },
+  // openGraph: {
+  //   title: "John Hamlin's Portfolio",
+  //   description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
+  //   images: 'opengraph-image.jpg',
+  //   url: 'https://johnhaml.in',
+  //   type: 'website',
+  // },
 };
 
 export default function RootLayout({
@@ -154,6 +155,34 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="!scroll-smooth">
+      {/* Doing this manually because generating it with Next.js is not working */}
+      <Head>
+        {/* Facebook */}
+        <meta property="og:url" content="https://johnhaml.in" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="John Hamlin's Portfolio" />
+        <meta
+          property="og:description"
+          content="John Hamlin is a full-stack engineer in Raleigh, N.C."
+        />
+        <meta
+          property="og:image"
+          content="https://johnhaml.in/opengraph-image.jpg"
+        />
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta property="twitter:domain" content="johnhaml.in" />
+        <meta property="twitter:url" content="https://johnhaml.in" />
+        <meta name="twitter:title" content="John Hamlin's Portfolio" />
+        <meta
+          name="twitter:description"
+          content="John Hamlin is a full-stack engineer in Raleigh, N.C."
+        />
+        <meta
+          name="twitter:image"
+          content="https://johnhaml.in/opengraph-image.jpg"
+        />
+      </Head>
       <body
         className={`${inter.className} sm:pt-38 relative bg-gray-50 pt-28 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
