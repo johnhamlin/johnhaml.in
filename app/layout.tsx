@@ -139,6 +139,8 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://johnhaml.in'),
 
   openGraph: {
+    title: "John Hamlin's Portfolio",
+    description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
     images: '/opengraph-image.jpg',
   },
 };
