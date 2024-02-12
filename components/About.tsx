@@ -9,6 +9,9 @@ function About() {
 
   return (
     <motion.section
+      initial={{ opacity: 0, y: 100 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.175 }}
       ref={ref}
       id="about"
       // TODO: Update these classes now that we don't need to use?
