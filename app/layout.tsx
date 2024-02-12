@@ -137,15 +137,15 @@ export const metadata: Metadata = {
     'MongoDB Atlas',
     'Amazon',
   ],
-  metadataBase: new URL('https://johnhaml.in'),
+  // metadataBase: new URL('https://johnhaml.in'),
 
-  // openGraph: {
-  //   title: "John Hamlin's Portfolio",
-  //   description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
-  //   images: 'opengraph-image.jpg',
-  //   url: 'https://johnhaml.in',
-  //   type: 'website',
-  // },
+  openGraph: {
+    title: "John Hamlin's Portfolio",
+    description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
+    images: 'opengraph-image.jpg',
+    url: 'https://johnhaml.in',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({
