@@ -4,8 +4,17 @@ import { FaReact } from 'react-icons/fa';
 import { LuGraduationCap } from 'react-icons/lu';
 import { SiApachekafka } from 'react-icons/si';
 import { BiNews } from 'react-icons/bi';
+import { BsBank } from 'react-icons/bs';
 
 export const experienceData = [
+  {
+    title: 'Senior Technical Lead',
+    location: 'Deutsche Bank / HCLTech',
+    description:
+      'Overhauling legacy code bases to use modern, maintainable tools and technologies. Implementing micro-frontend architecture to refactor monolithic apps into modular services, enabling CI/CD by multiple scrum teams working in multiple languages and frameworks.',
+    icon: React.createElement(BsBank),
+    date: '2024',
+  },
   {
     title: 'Software Engineer',
     location: 'xkite',
