@@ -18,58 +18,79 @@ export const ThemeContext = createContext<ThemeContextType | null>(null);
 
 function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   const [theme, setTheme] = useState<Theme>('light');
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Create and manage the status bar overlay
+  // Update theme color for iOS devices
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check if we're on iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    
-    if (isIOS) {
-      // Create the status bar overlay if it doesn't exist
-      let statusBarOverlay = document.getElementById('status-bar-overlay');
-      if (!statusBarOverlay) {
-        statusBarOverlay = document.createElement('div');
-        statusBarOverlay.id = 'status-bar-overlay';
-        statusBarOverlay.style.position = 'fixed';
-        statusBarOverlay.style.top = '0';
-        statusBarOverlay.style.left = '0';
-        statusBarOverlay.style.right = '0';
-        statusBarOverlay.style.zIndex = '9999';
-        statusBarOverlay.style.height = 'env(safe-area-inset-top, 0px)';
-        document.body.appendChild(statusBarOverlay);
-      }
+    // Get theme colors
+    const lightColor = '#f9fafb';
+    const darkColor = '#111827';
+    const currentColor = theme === 'dark' ? darkColor : lightColor;
 
-      // Update the overlay color based on the theme
-      statusBarOverlay.style.backgroundColor = theme === 'dark' ? '#111827' : '#f9fafb';
-      
-      // Also add a style element with CSS rules for iOS status bar
-      const styleId = 'ios-status-bar-style';
-      let statusBarStyle = document.getElementById(styleId);
-      if (!statusBarStyle) {
-        statusBarStyle = document.createElement('style');
-        statusBarStyle.id = styleId;
-        document.head.appendChild(statusBarStyle);
+    // Handle status bar overlay
+    const statusBarOverlay = document.getElementById('status-bar-overlay');
+    if (statusBarOverlay) {
+      statusBarOverlay.style.backgroundColor = currentColor;
+    }
+
+    // Manipulate theme-color meta tags directly
+    // First, remove any existing dynamic theme-color meta tags
+    const existingDynamicMeta = document.querySelector('meta[name="theme-color"][data-dynamic="true"]');
+    if (existingDynamicMeta) {
+      existingDynamicMeta.remove();
+    }
+
+    // Create a new theme-color meta tag with the current theme
+    const metaThemeColor = document.createElement('meta');
+    metaThemeColor.name = 'theme-color';
+    metaThemeColor.content = currentColor;
+    metaThemeColor.setAttribute('data-dynamic', 'true');
+    document.head.appendChild(metaThemeColor);
+
+    // Change background color of html and body for full coverage
+    document.documentElement.style.backgroundColor = currentColor;
+    
+    // Add a style tag with specific iOS rules
+    let statusBarStyle = document.getElementById('ios-status-bar-rules');
+    if (!statusBarStyle) {
+      statusBarStyle = document.createElement('style');
+      statusBarStyle.id = 'ios-status-bar-rules';
+      document.head.appendChild(statusBarStyle);
+    }
+    
+    statusBarStyle.textContent = `
+      /* Full height background colors */
+      html, body {
+        background-color: ${currentColor};
+        min-height: 100%;
       }
       
-      statusBarStyle.textContent = `
-        @supports (padding-top: env(safe-area-inset-top)) {
-          /* Override iOS status bar appearance with CSS */
-          html {
-            background-color: ${theme === 'dark' ? '#111827' : '#f9fafb'};
-          }
-          body {
-            background-color: ${theme === 'dark' ? '#111827' : '#f9fafb'};
-          }
-          /* Add padding for notches & dynamic island */
-          .safe-area-top-padding {
-            padding-top: env(safe-area-inset-top);
-          }
+      /* iOS status bar specific */
+      @supports (-webkit-touch-callout: none) {
+        /* iOS specific */
+        body::before {
+          content: "";
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: env(safe-area-inset-top, 0);
+          background-color: ${currentColor};
+          z-index: 10000;
         }
-      `;
-    }
+        
+        #status-bar-overlay {
+          background-color: ${currentColor} !important;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: env(safe-area-inset-top, 0);
+          z-index: 9999;
+        }
+      }
+    `;
   }, [theme]);
 
   /**
@@ -112,8 +133,6 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
     } else {
       document.documentElement.classList.remove('dark');
     }
-
-    setIsInitialLoad(false);
   }, []);
   
   return (

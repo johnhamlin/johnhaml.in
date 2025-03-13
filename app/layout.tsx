@@ -149,7 +149,7 @@ export const metadata: Metadata = {
   ],
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: "John Hamlin's Portfolio",
   },
   // metadataBase: new URL('https://johnhaml.in'),
@@ -191,14 +191,26 @@ export default function RootLayout({
             }
           }
 
-          /* For iOS specific handling */
-          @supports (padding-top: env(safe-area-inset-top)) {
+          /* iOS status bar styling - improved version */
+          @supports (-webkit-touch-callout: none) {
+            html {
+              min-height: 100%;
+              padding: 0;
+              margin: 0;
+            }
+            
+            body {
+              min-height: 100%;
+              padding-top: max(28px, calc(28px + env(safe-area-inset-top, 0px)));
+            }
+            
             #status-bar-overlay {
               position: fixed;
               top: 0;
               left: 0;
               right: 0;
-              height: env(safe-area-inset-top);
+              width: 100%;
+              height: env(safe-area-inset-top, 0px);
               z-index: 9999;
             }
           }
@@ -207,8 +219,8 @@ export default function RootLayout({
       <body
         className={`${inter.className} relative bg-gray-50 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
-        {/* Status bar placeholder that gets styled by JS */}
-        <div id="status-bar-overlay"></div>
+        {/* High-priority status bar overlay */}
+        <div id="status-bar-overlay" aria-hidden="true"></div>
         
         {/* Display two subtle pops of color to the top of the page to add some visual interest */}
         <div className="absolute right-[11rem] top-[-6rem] -z-10 h-[31.25rem] w-[31.25rem] rounded-full bg-[#fbe2e3] blur-[10rem] dark:bg-[#946263] sm:w-[68.75rem]"></div>
