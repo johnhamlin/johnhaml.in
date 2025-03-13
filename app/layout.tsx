@@ -152,15 +152,30 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: "John Hamlin's Portfolio",
   },
-  // metadataBase: new URL('https://johnhaml.in'),
-
-  // openGraph: {
-  //   title: "John Hamlin's Portfolio",
-  //   description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
-  //   // images: 'opengraph-image.jpg',
-  //   url: 'https://www.johnhaml.in',
-  //   type: 'website',
-  // },
+  metadataBase: new URL('https://johnhaml.in'),
+  openGraph: {
+    title: "John Hamlin's Portfolio",
+    description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
+    url: 'https://johnhaml.in',
+    siteName: "John Hamlin's Portfolio",
+    images: [
+      {
+        url: '/opengraph-image.png',
+        width: 1200,
+        height: 630,
+        alt: "John Hamlin's Portfolio",
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "John Hamlin's Portfolio",
+    description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
+    creator: '@johnhamlin_',
+    images: ['/twitter-image.png'],
+  },
 };
 
 export default function RootLayout({
