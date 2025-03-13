@@ -24,45 +24,20 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
    */
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    window.localStorage.setItem('theme', newTheme);
     
-    // Check if we're on iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    
-    if (isIOS) {
-      // For iOS, we need to reload the page for the status bar to update properly
-      
-      // First, save the new theme to localStorage
-      window.localStorage.setItem('theme', newTheme);
-      
-      // Save current scroll position
-      window.localStorage.setItem('scrollPosition', window.scrollY.toString());
-      
-      // Add a fade-out effect for smoother visual transition
-      document.body.style.opacity = '0.5';
-      document.body.style.transition = 'opacity 0.2s ease';
-      
-      // Use a short timeout before reload to allow transition
-      setTimeout(() => {
-        window.location.reload();
-      }, 100);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
     } else {
-      // For non-iOS, we can just update the theme dynamically
-      setTheme(newTheme);
-      window.localStorage.setItem('theme', newTheme);
-      
-      if (newTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
+      document.documentElement.classList.remove('dark');
     }
   };
 
-  /* Initialize theme on load and restore scroll position if needed */
+  /* Initialize theme on load */
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Handle initial theme
     const localTheme = window.localStorage.getItem('theme') as Theme | null;
     let activeTheme: Theme;
 
@@ -80,16 +55,6 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
-    }
-    
-    // Restore scroll position if coming from a reload
-    const savedScrollPos = window.localStorage.getItem('scrollPosition');
-    if (savedScrollPos) {
-      window.scrollTo(0, parseInt(savedScrollPos));
-      window.localStorage.removeItem('scrollPosition'); // Clean up
-      
-      // Restore opacity in case we're coming from a fade-out
-      document.body.style.opacity = '1';
     }
   }, []);
   
