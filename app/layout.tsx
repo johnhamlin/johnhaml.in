@@ -180,30 +180,25 @@ export default function RootLayout({
             --sal: env(safe-area-inset-left);
           }
           
-          /* Status bar area styling */
-          body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: max(28px, calc(28px + var(--sat, 0px)));
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(0.5rem);
-            -webkit-backdrop-filter: blur(0.5rem);
-            z-index: 1000;
-            transition: background-color 0.3s ease;
-          }
-          
-          @media (min-width: 640px) {
+          /* Status bar area styling - iOS only */
+          @supports (-webkit-touch-callout: none) {
             body::before {
-              height: max(38px, calc(38px + var(--sat, 0px)));
+              content: '';
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: var(--sat, 0px);
+              background: rgba(255, 255, 255, 0.8);
+              backdrop-filter: blur(0.5rem);
+              -webkit-backdrop-filter: blur(0.5rem);
+              z-index: 998;
+              transition: background-color 0.3s ease;
             }
-          }
-          
-          /* Dark mode status bar */
-          .dark body::before {
-            background: rgba(17, 24, 39, 0.8);
+            
+            .dark body::before {
+              background: rgba(17, 24, 39, 0.8);
+            }
           }
           
           /* Makes sure body content doesn't go under the status bar */
