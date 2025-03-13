@@ -6,13 +6,23 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Head from 'next/head';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f9fafb' },
+    { media: '(prefers-color-scheme: dark)', color: '#111827' },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "John Hamlin's Portfolio",
@@ -137,6 +147,10 @@ export const metadata: Metadata = {
     'MongoDB Atlas',
     'Amazon',
   ],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+  },
   // metadataBase: new URL('https://johnhaml.in'),
 
   // openGraph: {
