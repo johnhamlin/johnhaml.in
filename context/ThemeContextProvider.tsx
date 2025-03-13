@@ -19,98 +19,46 @@ export const ThemeContext = createContext<ThemeContextType | null>(null);
 function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   const [theme, setTheme] = useState<Theme>('light');
 
-  // Update theme color for iOS devices
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Get theme colors
-    const lightColor = '#f9fafb';
-    const darkColor = '#111827';
-    const currentColor = theme === 'dark' ? darkColor : lightColor;
-
-    // Handle status bar overlay
-    const statusBarOverlay = document.getElementById('status-bar-overlay');
-    if (statusBarOverlay) {
-      statusBarOverlay.style.backgroundColor = currentColor;
-    }
-
-    // Manipulate theme-color meta tags directly
-    // First, remove any existing dynamic theme-color meta tags
-    const existingDynamicMeta = document.querySelector('meta[name="theme-color"][data-dynamic="true"]');
-    if (existingDynamicMeta) {
-      existingDynamicMeta.remove();
-    }
-
-    // Create a new theme-color meta tag with the current theme
-    const metaThemeColor = document.createElement('meta');
-    metaThemeColor.name = 'theme-color';
-    metaThemeColor.content = currentColor;
-    metaThemeColor.setAttribute('data-dynamic', 'true');
-    document.head.appendChild(metaThemeColor);
-
-    // Change background color of html and body for full coverage
-    document.documentElement.style.backgroundColor = currentColor;
-    
-    // Add a style tag with specific iOS rules
-    let statusBarStyle = document.getElementById('ios-status-bar-rules');
-    if (!statusBarStyle) {
-      statusBarStyle = document.createElement('style');
-      statusBarStyle.id = 'ios-status-bar-rules';
-      document.head.appendChild(statusBarStyle);
-    }
-    
-    statusBarStyle.textContent = `
-      /* Full height background colors */
-      html, body {
-        background-color: ${currentColor};
-        min-height: 100%;
-      }
-      
-      /* iOS status bar specific */
-      @supports (-webkit-touch-callout: none) {
-        /* iOS specific */
-        body::before {
-          content: "";
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: env(safe-area-inset-top, 0);
-          background-color: ${currentColor};
-          z-index: 10000;
-        }
-        
-        #status-bar-overlay {
-          background-color: ${currentColor} !important;
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: env(safe-area-inset-top, 0);
-          z-index: 9999;
-        }
-      }
-    `;
-  }, [theme]);
-
   /**
-   * The function toggles between a light and dark theme by updating the theme state, storing it in
-   * local storage, and adding or removing a 'dark' class from the document's root element.
+   * Toggle between light and dark themes
    */
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    window.localStorage.setItem('theme', newTheme);
     
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    
+    if (isIOS) {
+      // For iOS, we need to reload the page for the status bar to update properly
+      
+      // First, save the new theme to localStorage
+      window.localStorage.setItem('theme', newTheme);
+      
+      // Save current scroll position
+      window.localStorage.setItem('scrollPosition', window.scrollY.toString());
+      
+      // Add a fade-out effect for smoother visual transition
+      document.body.style.opacity = '0.5';
+      document.body.style.transition = 'opacity 0.2s ease';
+      
+      // Use a short timeout before reload to allow transition
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     } else {
-      document.documentElement.classList.remove('dark');
+      // For non-iOS, we can just update the theme dynamically
+      setTheme(newTheme);
+      window.localStorage.setItem('theme', newTheme);
+      
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   };
 
-  /* The `useEffect` hook in this code is responsible for setting the initial theme based on the user's
-  preference or the stored theme in the local storage. */
+  /* Initialize theme on load and restore scroll position if needed */
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -132,6 +80,16 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+    
+    // Restore scroll position if coming from a reload
+    const savedScrollPos = window.localStorage.getItem('scrollPosition');
+    if (savedScrollPos) {
+      window.scrollTo(0, parseInt(savedScrollPos));
+      window.localStorage.removeItem('scrollPosition'); // Clean up
+      
+      // Restore opacity in case we're coming from a fade-out
+      document.body.style.opacity = '1';
     }
   }, []);
   
