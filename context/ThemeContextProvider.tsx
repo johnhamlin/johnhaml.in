@@ -13,30 +13,11 @@ type ThemeContextProviderProps = {
   children: React.ReactNode;
 };
 
-// Theme colors matching those in viewport metadata
-const THEME_COLORS = {
-  light: '#f9fafb',
-  dark: '#111827'
-};
-
 // null if accesses outside of ThemeContextProvider
 export const ThemeContext = createContext<ThemeContextType | null>(null);
 
 function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   const [theme, setTheme] = useState<Theme>('light');
-
-  // Helper function to update theme-color meta tag
-  const updateThemeColorMeta = (newTheme: Theme) => {
-    // Update or create the theme-color meta tag
-    let metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (!metaThemeColor) {
-      metaThemeColor = document.createElement('meta');
-      metaThemeColor.setAttribute('name', 'theme-color');
-      document.head.appendChild(metaThemeColor);
-    }
-    
-    metaThemeColor.setAttribute('content', THEME_COLORS[newTheme]);
-  };
 
   /**
    * The function toggles between a light and dark theme by updating the theme state, storing it in
@@ -47,34 +28,68 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
       setTheme('dark');
       window.localStorage.setItem('theme', 'dark');
       document.documentElement.classList.add('dark');
-      updateThemeColorMeta('dark');
+      // For iOS status bar in dark mode
+      document.documentElement.style.setProperty('--status-bar-color', '#111827');
     } else {
       setTheme('light');
       window.localStorage.setItem('theme', 'light');
       document.documentElement.classList.remove('dark');
-      updateThemeColorMeta('light');
+      // For iOS status bar in light mode
+      document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
     }
   };
 
   /* The `useEffect` hook in this code is responsible for setting the initial theme based on the user's
   preference or the stored theme in the local storage. */
   useEffect(() => {
+    // Set up the CSS variable for status bar color
+    if (typeof document !== 'undefined') {
+      // First, add a style tag with CSS rules for iOS status bar color
+      const styleEl = document.createElement('style');
+      styleEl.innerHTML = `
+        @supports (padding-top: env(safe-area-inset-top)) {
+          html {
+            --status-bar-color: ${theme === 'light' ? '#f9fafb' : '#111827'};
+            background-color: var(--status-bar-color);
+          }
+          body {
+            background-color: ${theme === 'light' ? '#f9fafb' : '#111827'};
+            min-height: 100vh;
+          }
+          /* Override iOS status bar appearance */
+          @media screen and (orientation: portrait) {
+            html::before {
+              content: '';
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: env(safe-area-inset-top);
+              background-color: var(--status-bar-color);
+              z-index: 10000;
+            }
+          }
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+
     const localTheme = window.localStorage.getItem('theme') as Theme | null;
 
     if (localTheme) {
       setTheme(localTheme);
       if (localTheme === 'dark') {
         document.documentElement.classList.add('dark');
+        document.documentElement.style.setProperty('--status-bar-color', '#111827');
+      } else {
+        document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
       }
-      // Update theme-color meta when theme is loaded from storage
-      updateThemeColorMeta(localTheme);
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       setTheme('dark');
       document.documentElement.classList.add('dark');
-      updateThemeColorMeta('dark');
+      document.documentElement.style.setProperty('--status-bar-color', '#111827');
     } else {
-      // Explicitly set light theme if not dark
-      updateThemeColorMeta('light');
+      document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
     }
   }, []);
   

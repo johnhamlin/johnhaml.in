@@ -150,6 +150,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
+    title: "John Hamlin's Portfolio",
   },
   // metadataBase: new URL('https://johnhaml.in'),
 
@@ -169,8 +170,30 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="!scroll-smooth">
+      <head>
+        <style>{`
+          /* iOS safe area handling */
+          :root {
+            --sat: env(safe-area-inset-top);
+            --sar: env(safe-area-inset-right);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+          }
+          
+          /* Makes sure body content doesn't go under the status bar */
+          body {
+            padding-top: max(28px, calc(28px + var(--sat, 0px)));
+          }
+          
+          @media (min-width: 640px) {
+            body {
+              padding-top: max(38px, calc(38px + var(--sat, 0px)));
+            }
+          }
+        `}</style>
+      </head>
       <body
-        className={`${inter.className} sm:pt-38 relative bg-gray-50 pt-28 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
+        className={`${inter.className} relative bg-gray-50 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
         {/* Display two subtle pops of color to the top of the page to add some visual interest */}
         <div className="absolute right-[11rem] top-[-6rem] -z-10 h-[31.25rem] w-[31.25rem] rounded-full bg-[#fbe2e3] blur-[10rem] dark:bg-[#946263] sm:w-[68.75rem]"></div>
