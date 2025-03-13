@@ -158,14 +158,6 @@ export const metadata: Metadata = {
     description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
     url: 'https://johnhaml.in',
     siteName: "John Hamlin's Portfolio",
-    images: [
-      {
-        url: '/opengraph-image.png',
-        width: 1200,
-        height: 630,
-        alt: "John Hamlin's Portfolio",
-      },
-    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -174,7 +166,6 @@ export const metadata: Metadata = {
     title: "John Hamlin's Portfolio",
     description: 'John Hamlin is a full-stack developer in Raleigh, N.C.',
     creator: '@johnhamlin_',
-    images: ['/twitter-image.png'],
   },
 };
 
