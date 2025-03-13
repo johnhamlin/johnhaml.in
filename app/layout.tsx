@@ -149,7 +149,7 @@ export const metadata: Metadata = {
   ],
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: "John Hamlin's Portfolio",
   },
   // metadataBase: new URL('https://johnhaml.in'),
@@ -190,11 +190,26 @@ export default function RootLayout({
               padding-top: max(38px, calc(38px + var(--sat, 0px)));
             }
           }
+
+          /* For iOS specific handling */
+          @supports (padding-top: env(safe-area-inset-top)) {
+            #status-bar-overlay {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: env(safe-area-inset-top);
+              z-index: 9999;
+            }
+          }
         `}</style>
       </head>
       <body
         className={`${inter.className} relative bg-gray-50 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
+        {/* Status bar placeholder that gets styled by JS */}
+        <div id="status-bar-overlay"></div>
+        
         {/* Display two subtle pops of color to the top of the page to add some visual interest */}
         <div className="absolute right-[11rem] top-[-6rem] -z-10 h-[31.25rem] w-[31.25rem] rounded-full bg-[#fbe2e3] blur-[10rem] dark:bg-[#946263] sm:w-[68.75rem]"></div>
         <div className="xl:left=[-15rem] absolute left-[-35rem] top-[-1rem] -z-10 h-[31.25rem] w-[50rem] rounded-full bg-[#dbd7fb] blur-[10rem] dark:bg-[#676394] sm:w-[68.75rem] md:left-[-33rem] lg:left-[-28rem] 2xl:left-[-5rem] "></div>

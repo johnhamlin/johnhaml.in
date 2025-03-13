@@ -18,79 +18,102 @@ export const ThemeContext = createContext<ThemeContextType | null>(null);
 
 function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   const [theme, setTheme] = useState<Theme>('light');
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Create and manage the status bar overlay
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    
+    if (isIOS) {
+      // Create the status bar overlay if it doesn't exist
+      let statusBarOverlay = document.getElementById('status-bar-overlay');
+      if (!statusBarOverlay) {
+        statusBarOverlay = document.createElement('div');
+        statusBarOverlay.id = 'status-bar-overlay';
+        statusBarOverlay.style.position = 'fixed';
+        statusBarOverlay.style.top = '0';
+        statusBarOverlay.style.left = '0';
+        statusBarOverlay.style.right = '0';
+        statusBarOverlay.style.zIndex = '9999';
+        statusBarOverlay.style.height = 'env(safe-area-inset-top, 0px)';
+        document.body.appendChild(statusBarOverlay);
+      }
+
+      // Update the overlay color based on the theme
+      statusBarOverlay.style.backgroundColor = theme === 'dark' ? '#111827' : '#f9fafb';
+      
+      // Also add a style element with CSS rules for iOS status bar
+      const styleId = 'ios-status-bar-style';
+      let statusBarStyle = document.getElementById(styleId);
+      if (!statusBarStyle) {
+        statusBarStyle = document.createElement('style');
+        statusBarStyle.id = styleId;
+        document.head.appendChild(statusBarStyle);
+      }
+      
+      statusBarStyle.textContent = `
+        @supports (padding-top: env(safe-area-inset-top)) {
+          /* Override iOS status bar appearance with CSS */
+          html {
+            background-color: ${theme === 'dark' ? '#111827' : '#f9fafb'};
+          }
+          body {
+            background-color: ${theme === 'dark' ? '#111827' : '#f9fafb'};
+          }
+          /* Add padding for notches & dynamic island */
+          .safe-area-top-padding {
+            padding-top: env(safe-area-inset-top);
+          }
+        }
+      `;
+    }
+  }, [theme]);
 
   /**
    * The function toggles between a light and dark theme by updating the theme state, storing it in
    * local storage, and adding or removing a 'dark' class from the document's root element.
    */
   const toggleTheme = () => {
-    if (theme === 'light') {
-      setTheme('dark');
-      window.localStorage.setItem('theme', 'dark');
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    window.localStorage.setItem('theme', newTheme);
+    
+    if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
-      // For iOS status bar in dark mode
-      document.documentElement.style.setProperty('--status-bar-color', '#111827');
     } else {
-      setTheme('light');
-      window.localStorage.setItem('theme', 'light');
       document.documentElement.classList.remove('dark');
-      // For iOS status bar in light mode
-      document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
     }
   };
 
   /* The `useEffect` hook in this code is responsible for setting the initial theme based on the user's
   preference or the stored theme in the local storage. */
   useEffect(() => {
-    // Set up the CSS variable for status bar color
-    if (typeof document !== 'undefined') {
-      // First, add a style tag with CSS rules for iOS status bar color
-      const styleEl = document.createElement('style');
-      styleEl.innerHTML = `
-        @supports (padding-top: env(safe-area-inset-top)) {
-          html {
-            --status-bar-color: ${theme === 'light' ? '#f9fafb' : '#111827'};
-            background-color: var(--status-bar-color);
-          }
-          body {
-            background-color: ${theme === 'light' ? '#f9fafb' : '#111827'};
-            min-height: 100vh;
-          }
-          /* Override iOS status bar appearance */
-          @media screen and (orientation: portrait) {
-            html::before {
-              content: '';
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              height: env(safe-area-inset-top);
-              background-color: var(--status-bar-color);
-              z-index: 10000;
-            }
-          }
-        }
-      `;
-      document.head.appendChild(styleEl);
-    }
+    if (typeof window === 'undefined') return;
 
+    // Handle initial theme
     const localTheme = window.localStorage.getItem('theme') as Theme | null;
+    let activeTheme: Theme;
 
     if (localTheme) {
-      setTheme(localTheme);
-      if (localTheme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.setProperty('--status-bar-color', '#111827');
-      } else {
-        document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
-      }
+      activeTheme = localTheme;
     } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.setProperty('--status-bar-color', '#111827');
+      activeTheme = 'dark';
     } else {
-      document.documentElement.style.setProperty('--status-bar-color', '#f9fafb');
+      activeTheme = 'light';
     }
+
+    setTheme(activeTheme);
+    
+    if (activeTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    setIsInitialLoad(false);
   }, []);
   
   return (
