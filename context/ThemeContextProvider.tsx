@@ -26,7 +26,7 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     window.localStorage.setItem('theme', newTheme);
-    
+
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -50,14 +50,14 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
     }
 
     setTheme(activeTheme);
-    
+
     if (activeTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }, []);
-  
+
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
