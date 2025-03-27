@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Add these custom utility classes */
+@layer utilities {
+  .h-safe {
+    height: calc(4.5rem + env(safe-area-inset-top));
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .top-safe {
+    top: calc(0.15rem + env(safe-area-inset-top));
+  }
+}
+
 /* Change the color of the line in the Experence timeline component */
 html {
   --line-color: #e5e7eb;
