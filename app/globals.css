@@ -20,11 +20,15 @@
 /* Change the color of the line in the Experence timeline component */
 html {
   --line-color: #e5e7eb;
+  /* Prevent theme transition flicker */
+  transition: background-color 0.3s ease;
 }
 
 html.dark {
   --line-color: rgba(229, 231, 235, 0.2);
 }
+
+/* Add this to your globals.css file */
 
 /* Optimized gradient background that mimics the blur effect */
 .gradient-background {
@@ -144,4 +148,16 @@ html.dark {
 
 .animate-fade-in {
   animation: fade-in 0.6s ease-out forwards;
+}
+
+/* Ensure smooth color transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+/* Disable transitions on initial load to prevent flicker */
+html.no-transitions * {
+  transition: none !important;
 }

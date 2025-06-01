@@ -18,6 +18,7 @@ export const ThemeContext = createContext<ThemeContextType | null>(null);
 
 function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   const [theme, setTheme] = useState<Theme>('light');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   /**
    * Toggle between light and dark themes
@@ -38,6 +39,9 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Add no-transitions class to prevent initial flicker
+    document.documentElement.classList.add('no-transitions');
+
     const localTheme = window.localStorage.getItem('theme') as Theme | null;
     let activeTheme: Theme;
 
@@ -56,6 +60,12 @@ function ThemeContextProvider({ children }: ThemeContextProviderProps) {
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    // Remove no-transitions class after a frame to enable smooth transitions
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove('no-transitions');
+      setIsInitialized(true);
+    });
   }, []);
 
   return (
