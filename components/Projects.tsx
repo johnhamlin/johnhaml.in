@@ -2,7 +2,7 @@
 
 import { projectsData } from '@/content/projects';
 import SectionHeading from './SectionHeading';
-import React, { useEffect } from 'react';
+import React from 'react';
 import Project from './Project';
 import { useSectionInView } from '@/hooks/useSectionInView';
 
