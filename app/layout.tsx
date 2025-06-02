@@ -1,3 +1,10 @@
+import './globals.css';
+import './safe-area.css';
+
+import { Inter } from 'next/font/google';
+import { Metadata } from 'next/types';
+
+import BackgroundLoader from '@/components/BackgroundLoader';
 import Footer from '@/components/Footer';
 import ThemeSwitch from '@/components/ThemeSwitch';
 import ActiveSectionContextProvider from '@/context/ActiveSectionContextProvider';
@@ -6,11 +13,6 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import './safe-area.css';
-import BackgroundLoader from '@/components/BackgroundLoader';
-import { Metadata } from 'next/types';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
@@ -22,8 +24,18 @@ export const metadata: Metadata = {
     default: 'John Hamlin - Senior Software Engineer',
     template: '%s | John Hamlin',
   },
-  description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo. I live in Raleigh, North Carolina.',
-  keywords: ['John Hamlin', 'Software Engineer', 'TypeScript', 'React', 'Next.js', 'Node.js', 'Full Stack Developer', 'Raleigh'],
+  description:
+    'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo. I live in Raleigh, North Carolina.',
+  keywords: [
+    'John Hamlin',
+    'Software Engineer',
+    'TypeScript',
+    'React',
+    'Next.js',
+    'Node.js',
+    'Full Stack Developer',
+    'Raleigh',
+  ],
   authors: [{ name: 'John Hamlin' }],
   creator: 'John Hamlin',
 
@@ -33,16 +45,8 @@ export const metadata: Metadata = {
     url: baseUrl,
     siteName: 'John Hamlin',
     title: 'John Hamlin - Senior Software Engineer',
-    description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
-    images: [
-      {
-        url: `${baseUrl}/opengraph-image.png`, // Using absolute URL for better compatibility
-        width: 1200,
-        height: 630,
-        alt: 'John Hamlin - Senior Software Engineer',
-        type: 'image/png',
-      }
-    ],
+    description:
+      'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
   },
 
   twitter: {
@@ -50,11 +54,8 @@ export const metadata: Metadata = {
     site: '@johnhamlin', // Your Twitter handle
     creator: '@johnhamlin', // Your Twitter handle
     title: 'John Hamlin - Senior Software Engineer',
-    description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
-    images: {
-      url: `${baseUrl}/twitter-image.png`, // Using absolute URL
-      alt: 'John Hamlin - Senior Software Engineer',
-    },
+    description:
+      'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
   },
 
   alternates: {
@@ -81,14 +82,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="!scroll-smooth">
-      <meta property="og:image" content="<generated>" />
-      <meta property="og:image:type" content="<generated>" />
-      <meta property="og:image:width" content="<generated>" />
-      <meta property="og:image:height" content="<generated>" />
-      <meta name="twitter:image" content="<generated>" />
-      <meta name="twitter:image:type" content="<generated>" />
-      <meta name="twitter:image:width" content="<generated>" />
-      <meta name="twitter:image:height" content="<generated>" />
       <body
         className={`${inter.className} sm:pt-38 relative bg-gray-50 pt-28 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
