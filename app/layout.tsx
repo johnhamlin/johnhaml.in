@@ -1,9 +1,3 @@
-import './globals.css';
-import './safe-area.css';
-
-import { Inter } from 'next/font/google';
-import { Metadata } from 'next/types';
-
 import BackgroundLoader from '@/components/BackgroundLoader';
 import Footer from '@/components/Footer';
 import ThemeSwitch from '@/components/ThemeSwitch';
@@ -13,6 +7,11 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Inter } from 'next/font/google';
+import { Metadata } from 'next/types';
+
+import './globals.css';
+import './safe-area.css';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
@@ -47,6 +46,16 @@ export const metadata: Metadata = {
     title: 'John Hamlin - Senior Software Engineer',
     description:
       'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
+    // Explicitly define images for better Apple/iMessage compatibility
+    images: [
+      {
+        url: `${baseUrl}/opengraph-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'John Hamlin - Senior Software Engineer',
+        type: 'image/png',
+      },
+    ],
   },
 
   twitter: {
@@ -56,6 +65,41 @@ export const metadata: Metadata = {
     title: 'John Hamlin - Senior Software Engineer',
     description:
       'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
+    // Explicitly define images for better Apple/iMessage compatibility
+    images: [
+      {
+        url: `${baseUrl}/twitter-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'John Hamlin - Senior Software Engineer',
+      },
+    ],
+  },
+
+  // Apple-specific metadata for iMessage and Safari
+  appleWebApp: {
+    capable: true,
+    title: 'John Hamlin - Senior Software Engineer',
+    statusBarStyle: 'default',
+  },
+
+  // Additional metadata for better link previews
+  other: {
+    // Apple-specific meta tags for link previews
+    'apple-mobile-web-app-title': 'John Hamlin',
+    // Ensure proper image handling for Apple devices
+    'format-detection': 'telephone=no',
+    // Explicit OpenGraph image URL for Apple systems
+    'og:image:secure_url': `${baseUrl}/opengraph-image.png`,
+    'og:image:url': `${baseUrl}/opengraph-image.png`,
+    // Additional Twitter meta for Apple compatibility
+    'twitter:image:src': `${baseUrl}/twitter-image.png`,
+  },
+
+  // Apple touch icon
+  icons: {
+    apple: `${baseUrl}/apple-icon.png`,
+    icon: `${baseUrl}/favicon.ico`,
   },
 
   alternates: {
