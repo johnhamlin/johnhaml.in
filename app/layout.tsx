@@ -89,11 +89,6 @@ export const metadata: Metadata = {
     'apple-mobile-web-app-title': 'John Hamlin',
     // Ensure proper image handling for Apple devices
     'format-detection': 'telephone=no',
-    // Explicit OpenGraph image URL for Apple systems
-    'og:image:secure_url': `${baseUrl}/opengraph-image.png`,
-    'og:image:url': `${baseUrl}/opengraph-image.png`,
-    // Additional Twitter meta for Apple compatibility
-    'twitter:image:src': `${baseUrl}/twitter-image.png`,
   },
 
   // Apple touch icon
