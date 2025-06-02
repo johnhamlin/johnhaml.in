@@ -14,7 +14,7 @@ import { Metadata } from 'next/types';
 
 const inter = Inter({ subsets: ['latin'] });
 const GOOGLE_ANALYTICS_ID = process.env.GOOGLE_ANALYTICS_ID;
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://johnhaml.in';
+const baseUrl = 'https://johnhaml.in';
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
@@ -22,33 +22,45 @@ export const metadata: Metadata = {
     default: 'John Hamlin - Senior Software Engineer',
     template: '%s | John Hamlin',
   },
-  description: 'Senior Software Engineer specializing in TypeScript, React, Next.js, and Node.js. Building modern web and mobile applications with a focus on user experience and maintainable code.',
+  description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo. I live in Raleigh, North Carolina.',
   keywords: ['John Hamlin', 'Software Engineer', 'TypeScript', 'React', 'Next.js', 'Node.js', 'Full Stack Developer', 'Raleigh'],
   authors: [{ name: 'John Hamlin' }],
   creator: 'John Hamlin',
+
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: baseUrl,
-    siteName: 'John Hamlin Portfolio',
+    siteName: 'John Hamlin',
     title: 'John Hamlin - Senior Software Engineer',
-    description: 'Senior Software Engineer specializing in TypeScript, React, Next.js, and Node.js. Building modern web and mobile applications.',
+    description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
     images: [
       {
-        url: '/opengraph-image.png', // Next.js will resolve this with metadataBase
+        url: `${baseUrl}/opengraph-image.png`, // Using absolute URL for better compatibility
         width: 1200,
         height: 630,
         alt: 'John Hamlin - Senior Software Engineer',
+        type: 'image/png',
       }
     ],
   },
+
   twitter: {
     card: 'summary_large_image',
+    site: '@johnhamlin', // Your Twitter handle
+    creator: '@johnhamlin', // Your Twitter handle
     title: 'John Hamlin - Senior Software Engineer',
-    description: 'Senior Software Engineer specializing in TypeScript, React, Next.js, and Node.js.',
-    images: ['/twitter-image.png'], // Next.js will resolve this with metadataBase
-    creator: '@johnhamlin', // Replace with your actual Twitter handle
+    description: 'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.',
+    images: {
+      url: `${baseUrl}/twitter-image.png`, // Using absolute URL
+      alt: 'John Hamlin - Senior Software Engineer',
+    },
   },
+
+  alternates: {
+    canonical: baseUrl,
+  },
+
   robots: {
     index: true,
     follow: true,
@@ -60,11 +72,6 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    google: 'your-google-verification-code', // Optional
-    // yandex: 'verification-code',
-    // bing: 'verification-code',
-  },
 };
 
 export default function RootLayout({
@@ -74,6 +81,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="!scroll-smooth">
+      <meta property="og:image" content="<generated>" />
+      <meta property="og:image:type" content="<generated>" />
+      <meta property="og:image:width" content="<generated>" />
+      <meta property="og:image:height" content="<generated>" />
+      <meta name="twitter:image" content="<generated>" />
+      <meta name="twitter:image:type" content="<generated>" />
+      <meta name="twitter:image:width" content="<generated>" />
+      <meta name="twitter:image:height" content="<generated>" />
       <body
         className={`${inter.className} sm:pt-38 relative bg-gray-50 pt-28 text-gray-950 dark:bg-gray-900 dark:text-gray-50 dark:text-opacity-90`}
       >
