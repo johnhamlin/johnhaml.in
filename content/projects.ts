@@ -6,23 +6,6 @@ import xkiteImg from '@/public/xkite.png';
 
 export const projectsData = [
   {
-    title: 'xkite',
-    description:
-      'Open source GUI for Apache Kafka prototyping, testing and deployment. Spins up containerized Kafka clusters, runs custom tests, and exports configs for deployment.',
-    tags: [
-      'Next.js',
-      'Apache Kafka',
-      'Prometheus',
-      'Grafana',
-      'Docker',
-      'Java',
-      'Spring Boot',
-    ],
-    imageUrl: xkiteImg,
-    imageMobileUrl: null,
-    url: 'https://xkite.io/',
-  },
-  {
     title: 'ScrewTapp',
     description:
       'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one. Currently in alpha, but you can check out the code on my GitHub.',
@@ -39,6 +22,23 @@ export const projectsData = [
     imageUrl: thisSiteImg,
     imageMobileUrl: null,
     url: 'https://github.com/johnhamlin/johnhaml.in',
+  },
+  {
+    title: 'xkite',
+    description:
+      'Open source GUI for Apache Kafka prototyping, testing and deployment. Spins up containerized Kafka clusters, runs custom tests, and exports configs for deployment.',
+    tags: [
+      'Next.js',
+      'Apache Kafka',
+      'Prometheus',
+      'Grafana',
+      'Docker',
+      'Java',
+      'Spring Boot',
+    ],
+    imageUrl: xkiteImg,
+    imageMobileUrl: null,
+    url: 'https://xkite.io/',
   },
   {
     title: 'Me v2.0',
