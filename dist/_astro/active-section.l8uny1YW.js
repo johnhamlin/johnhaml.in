@@ -1,1 +1,0 @@
-let i="Home",c=0;const e=new Set;function s(){return i}function o(t){i=t,e.forEach(n=>n(t))}function r(){return c}function a(t){c=t}function u(t){return e.add(t),()=>e.delete(t)}export{o as a,a as b,r as c,s as g,u as s};
