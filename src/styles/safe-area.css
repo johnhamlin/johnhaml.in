@@ -24,6 +24,8 @@
 
   .dark body::before {
     background: rgba(17, 24, 39, 0.8);
+    backdrop-filter: blur(0.51rem);
+    -webkit-backdrop-filter: blur(0.51rem);
   }
 }
 
