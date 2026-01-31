@@ -6,29 +6,6 @@
   --sal: env(safe-area-inset-left);
 }
 
-/* Status bar area styling - iOS only */
-@supports (-webkit-touch-callout: none) {
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--sat, 0px);
-    background: rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(0.5rem);
-    -webkit-backdrop-filter: blur(0.5rem);
-    z-index: 998;
-    transition: background-color 0.3s ease;
-  }
-
-  .dark body::before {
-    background: rgba(17, 24, 39, 0.8);
-    backdrop-filter: blur(0.51rem);
-    -webkit-backdrop-filter: blur(0.51rem);
-  }
-}
-
 /* Makes sure body content doesn't go under the status bar */
 body {
   padding-top: max(28px, calc(28px + var(--sat, 0px)));
