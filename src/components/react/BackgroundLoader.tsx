@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import useTheme from '../../hooks/useTheme';
 
 export default function BackgroundLoader() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const { theme } = useTheme();
+  const prevThemeRef = useRef(theme);
 
   useEffect(() => {
     // Check if device can handle blur effects well
@@ -35,7 +37,22 @@ export default function BackgroundLoader() {
     checkPerformance();
   }, []);
 
-  if (!isLoaded) {
+  // Force iOS Safari to repaint GPU-composited blur layers on theme change
+  useEffect(() => {
+    if (prevThemeRef.current !== theme) {
+      prevThemeRef.current = theme;
+      setIsTransitioning(true);
+
+      // Wait one frame then remount to force fresh GPU layers
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsTransitioning(false);
+        });
+      });
+    }
+  }, [theme]);
+
+  if (!isLoaded || isTransitioning) {
     return null; // Don't render anything initially
   }
 
