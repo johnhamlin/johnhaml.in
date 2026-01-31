@@ -1,0 +1,1 @@
+import{j as i}from"./jsx-runtime.BUb10OAt.js";import{m as t}from"./proxy.B4vRcEzK.js";import"./index.D3AB4DJv.js";function m(){return i.jsx(t.div,{className:"my-24 hidden h-16 w-1 rounded-full bg-gray-200 dark:bg-opacity-20 sm:block",initial:{opacity:0,y:100},animate:{opacity:1,y:0},transition:{delay:.125}})}export{m as default};

@@ -1,0 +1,38 @@
+---
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="mb-10 px-4 text-center text-gray-500">
+  <small class="mb-2 block text-xs">
+    &copy; {currentYear} John Hamlin. All rights reserved.
+  </small>
+  <p class="text-xs">
+    Built with{' '}
+    <a
+      href="https://astro.build/"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="underline"
+    >
+      Astro
+    </a>
+    {', '}
+    <a
+      href="https://tailwindcss.com/"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="underline"
+    >
+      Tailwind CSS
+    </a>
+    {' and '}
+    <a
+      href="https://www.typescriptlang.org/"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="underline"
+    >
+      TypeScript
+    </a>.
+  </p>
+</footer>
