@@ -5,14 +5,3 @@
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
 }
-
-/* Makes sure body content doesn't go under the status bar */
-body {
-  padding-top: max(28px, calc(28px + var(--sat, 0px)));
-}
-
-@media (min-width: 640px) {
-  body {
-    padding-top: max(38px, calc(38px + var(--sat, 0px)));
-  }
-}
