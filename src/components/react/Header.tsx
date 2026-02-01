@@ -24,8 +24,9 @@ export default function Header() {
   return (
     // z-index to make always on top
     <header className="relative z-[999]">
+      {/* Frosted glass background - extends from top of viewport through navbar on mobile */}
       <motion.div
-        className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.5rem)] h-[3.25rem] w-[22rem] -translate-x-1/2 overflow-hidden rounded-full border border-white border-opacity-40 bg-white bg-opacity-80 shadow-lg shadow-black/[0.03] backdrop-blur-[0.5rem] dark:border-white/10 dark:bg-gray-800 dark:bg-opacity-75 sm:top-6 sm:w-[31rem]"
+        className="fixed left-1/2 top-[calc(env(safe-area-inset-top)+0.5rem)] h-[3.25rem] w-[22rem] -translate-x-1/2 overflow-hidden rounded-full border border-gray-200 bg-white/90 shadow-lg shadow-black/10 backdrop-blur-[0.5rem] dark:border-white/20 dark:bg-gray-950/80 dark:shadow-black/30 sm:top-6 sm:w-[31rem]"
         initial={{ y: -200, x: '-50%', opacity: 0 }}
         animate={{ y: 0, x: '-50%', opacity: 1 }}
       ></motion.div>
