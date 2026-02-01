@@ -14,7 +14,7 @@ const GA_ID = import.meta.env.PUBLIC_GA_ID;
 <html lang="en" class="!scroll-smooth">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
@@ -60,8 +60,12 @@ const GA_ID = import.meta.env.PUBLIC_GA_ID;
     <!-- Apple-specific -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="John Hamlin" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
+
+    <!-- Theme color for Safari/iOS -->
+    <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="transparent" media="(prefers-color-scheme: dark)" />
 
     <!-- Canonical -->
     <link rel="canonical" href={baseUrl} />
