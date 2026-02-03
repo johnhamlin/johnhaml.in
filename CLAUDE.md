@@ -54,3 +54,17 @@ Static build outputs to `/dist`. Deploy to Cloudflare Pages:
 - Build command: `npm run build`
 - Output directory: `dist`
 - Node version: 18+
+
+## Active Technologies
+- TypeScript 5.7 (strict mode), Node 18+ + Astro 5, React 18, Tailwind CSS 3.4, Framer Motion 11, react-icons 5.4 (001-portfolio-optimization)
+- N/A (static site) (001-portfolio-optimization)
+
+## Image Assets
+
+Project images are stored as WebP in `/public/` for optimal performance:
+- Use WebP format for all new project images
+- Keep dimensions reasonable (1200px max for desktop, 800px for mobile)
+- Quality setting: 80-85 for photographs
+
+## Recent Changes
+- 001-portfolio-optimization: Performance optimization - WebP images, CSS containment, Framer Motion chunking. Lighthouse mobile 99.

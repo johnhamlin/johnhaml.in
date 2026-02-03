@@ -6,4 +6,20 @@ import mdx from '@astrojs/mdx';
 export default defineConfig({
   integrations: [react(), tailwind(), mdx()],
   output: 'static',
+  image: {
+    service: {
+      entrypoint: 'astro/assets/services/sharp',
+    },
+  },
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'framer-motion': ['framer-motion'],
+          },
+        },
+      },
+    },
+  },
 });

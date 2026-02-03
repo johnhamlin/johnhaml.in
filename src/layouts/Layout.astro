@@ -77,9 +77,16 @@ const GA_ID = import.meta.env.PUBLIC_GA_ID;
       content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1"
     />
 
-    <!-- Google Fonts - Inter -->
+    <!-- Google Fonts - Inter with preload for faster LCP -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0Q5nw.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
