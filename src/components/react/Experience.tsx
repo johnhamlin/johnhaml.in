@@ -1,5 +1,4 @@
 import SectionHeading from './SectionHeading';
-// @ts-expect-error - CJS module with ESM import
 import VerticalTimelineComponent from 'react-vertical-timeline-component';
 import 'react-vertical-timeline-component/style.min.css';
 

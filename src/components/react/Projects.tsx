@@ -10,8 +10,8 @@ export default function Projects() {
     <section ref={ref} id="projects" className="mb-28 scroll-mt-28">
       <SectionHeading>My Projects</SectionHeading>
       <div>
-        {projectsData.map((project) => (
-          <Project key={project.title} {...project} />
+        {projectsData.map((project, index) => (
+          <Project key={project.title} {...project} index={index} />
         ))}
       </div>
     </section>

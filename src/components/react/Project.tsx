@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useScroll, motion, useTransform } from 'framer-motion';
 import { projectsData } from '../../data/projects';
 
-type ProjectProps = (typeof projectsData)[number];
+type ProjectProps = (typeof projectsData)[number] & { index: number };
 
 export default function Project(props: ProjectProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -27,10 +27,10 @@ export default function Project(props: ProjectProps) {
       {/* Card container */}
       {props.url ? (
         <a href={props.url} target="_blank" rel="noopener noreferrer">
-          <ProjectCard {...props} />
+          <ProjectCard {...props} isEven={props.index % 2 === 1} />
         </a>
       ) : (
-        <ProjectCard {...props} />
+        <ProjectCard {...props} isEven={props.index % 2 === 1} />
       )}
     </motion.div>
   );
@@ -42,20 +42,40 @@ function ProjectCard({
   tags,
   imageUrl,
   imageMobileUrl,
-}: ProjectProps) {
+  isEven,
+}: ProjectProps & { isEven: boolean }) {
   return (
-    <div className="relative max-w-[42rem] overflow-hidden rounded-xl border border-black/5 bg-gray-100 transition hover:bg-gray-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 sm:min-h-[18rem] sm:pr-8 sm:group-even:pl-8">
+    <div
+      className={
+        isEven
+          ? 'relative max-w-[42rem] overflow-hidden rounded-xl border border-black/5 bg-gray-100 transition hover:bg-gray-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 sm:min-h-[18rem] sm:pl-8'
+          : 'relative max-w-[42rem] overflow-hidden rounded-xl border border-black/5 bg-gray-100 transition hover:bg-gray-200 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 sm:min-h-[18rem] sm:pr-8'
+      }
+    >
       {/* Text Container on the left for desktop */}
       <div className="flex h-full flex-col pb-7">
         {/* Image for mobile version on top */}
         <div className="mb-2 h-[12rem] w-full overflow-hidden object-cover sm:hidden">
-          <img
-            src={imageMobileUrl ? imageMobileUrl : imageUrl}
-            alt={title}
-            className="shrink-0"
-          />
+          <picture>
+            <source
+              media="(max-width: 639px)"
+              srcSet={imageMobileUrl ? imageMobileUrl : imageUrl}
+            />
+            <img
+              src={imageMobileUrl ? imageMobileUrl : imageUrl}
+              alt={title}
+              className="shrink-0"
+              loading="lazy"
+            />
+          </picture>
         </div>
-        <div className="px-5 pt-4 sm:max-w-[50%] sm:pl-10 sm:pr-2 sm:pt-10 sm:group-even:ml-[18rem]">
+        <div
+          className={
+            isEven
+              ? 'px-5 pt-4 sm:ml-[18rem] sm:max-w-[50%] sm:pl-2 sm:pr-10 sm:pt-10'
+              : 'px-5 pt-4 sm:max-w-[50%] sm:pl-10 sm:pr-2 sm:pt-10'
+          }
+        >
           <h3 className="text-2xl font-semibold">{title}</h3>
           <p className="mt-2 leading-relaxed text-gray-700 dark:text-white/70">
             {description}
@@ -73,12 +93,27 @@ function ProjectCard({
         </div>
       </div>
 
-      {/* Image on the right */}
-      <img
-        src={imageUrl}
-        alt={title}
-        className="absolute -right-40 top-8 hidden w-[28.25rem] rounded-t-lg shadow-2xl transition group-even:-left-40 group-even:right-[initial] group-hover:-translate-x-3 group-hover:translate-y-3 group-hover:-rotate-2 group-hover:scale-[1.04] group-even:group-hover:translate-x-3 group-even:group-hover:translate-y-3 group-even:group-hover:rotate-2 sm:block"
-      />
+      {/* Image - desktop only, alternates between right and left
+          Tailwind safelist: -left-40 -right-40 group-hover:translate-x-3 group-hover:-translate-x-3 group-hover:rotate-2 group-hover:-rotate-2 */}
+      <picture
+        className={
+          isEven
+            ? 'absolute -left-40 top-8 hidden w-[28.25rem] sm:block'
+            : 'absolute -right-40 top-8 hidden w-[28.25rem] sm:block'
+        }
+      >
+        <source media="(min-width: 640px)" srcSet={imageUrl} />
+        <img
+          src={imageUrl}
+          alt={title}
+          className={
+            isEven
+              ? 'rounded-t-lg shadow-2xl transition group-hover:translate-x-3 group-hover:translate-y-3 group-hover:rotate-2 group-hover:scale-[1.04]'
+              : 'rounded-t-lg shadow-2xl transition group-hover:-translate-x-3 group-hover:translate-y-3 group-hover:-rotate-2 group-hover:scale-[1.04]'
+          }
+          loading="lazy"
+        />
+      </picture>
     </div>
   );
 }
