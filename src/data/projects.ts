@@ -4,7 +4,7 @@ export const projectsData = [
     description:
       'There were lots of apps to stream the jam band shows on archive.org, but none for the trove of DJ Screw mixtapes. So I made one. Currently in alpha, but you can check out the code on my GitHub.',
     tags: ['React Native', 'Expo', 'Redux', 'TypeScript', 'RTK Query'],
-    imageUrl: '/screwtapp.png',
+    imageUrl: '/screwtapp.webp',
     imageMobileUrl: null,
     url: 'https://github.com/johnhamlin/screwtapp',
   },
@@ -13,7 +13,7 @@ export const projectsData = [
     description:
       'Your classic, over-engineered personal portfolio site, built from scratch with my favorite tools and a few I wanted to try out.',
     tags: ['Astro', 'TypeScript', 'MDX', 'Tailwind CSS', 'Framer Motion'],
-    imageUrl: '/this-site.jpg',
+    imageUrl: '/this-site.webp',
     imageMobileUrl: null,
     url: 'https://github.com/johnhamlin/johnhaml.in',
   },
@@ -30,7 +30,7 @@ export const projectsData = [
       'Java',
       'Spring Boot',
     ],
-    imageUrl: '/xkite.png',
+    imageUrl: '/xkite.webp',
     imageMobileUrl: null,
     url: 'https://xkite.io/',
   },
@@ -38,8 +38,8 @@ export const projectsData = [
     title: 'Me v2.0',
     description: `In 2023, my wife and I took some time off to welcome twin boys and get to know the little guys.`,
     tags: ['Swaddling', 'Coffee', 'Ms. Rachel', 'Love', 'Earplugs'],
-    imageUrl: '/version-2.jpg',
-    imageMobileUrl: '/version-2-mobile.jpg',
+    imageUrl: '/version-2.webp',
+    imageMobileUrl: '/version-2-mobile.webp',
     url: null,
   },
 ] as const;

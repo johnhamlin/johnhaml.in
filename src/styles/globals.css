@@ -29,6 +29,8 @@ html.dark {
   inset: 0;
   z-index: -10;
   overflow: hidden;
+  contain: layout paint;
+  will-change: opacity;
   background: linear-gradient(
           to bottom right,
           #f3f4f6 0%,
@@ -59,6 +61,7 @@ html.dark {
   inset: 0;
   z-index: -10;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .radial-gradient-background::before,
@@ -67,6 +70,7 @@ html.dark {
   position: absolute;
   border-radius: 50%;
   opacity: 0.4;
+  will-change: transform;
 }
 
 .radial-gradient-background::before {
@@ -143,8 +147,15 @@ html.dark {
   animation: fade-in 0.6s ease-out forwards;
 }
 
-/* Ensure smooth color transitions for theme changes */
-* {
+/* Theme transition applied only to elements that visibly change */
+.theme-transition,
+body,
+.gradient-background,
+.radial-gradient-background,
+header,
+nav,
+a,
+button {
   transition-property: background-color, border-color, color;
   transition-duration: 0.3s;
   transition-timing-function: ease;

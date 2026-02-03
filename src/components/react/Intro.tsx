@@ -44,9 +44,10 @@ export default function Intro({ children }: IntroProps) {
             }}
           >
             <img
-              src="/John_Hamlin_Headshot.jpg"
+              src="/headshot.webp"
               alt="Headshot of John Hamlin"
               className="h-48 w-48 rounded-full border-[0.35rem] border-white object-cover shadow-xl"
+              fetchPriority="high"
             />
             <motion.span
               ref={scope} // Framer Motion ref for useAnimate on click/hover
