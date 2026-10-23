@@ -1,13 +1,52 @@
 ---
 interface Props {
   title?: string;
+  description?: string;
+  canonicalURL?: string;
+  ogType?: 'website' | 'article';
+  publishedTime?: Date | string;
+  modifiedTime?: Date | string;
+  tags?: string[];
+  image?: string;
+  imageAlt?: string;
 }
 
-const { title = 'John Hamlin - Senior Software Engineer' } = Astro.props;
-const baseUrl = 'https://johnhamlin.com';
-const description =
+const defaultTitle = 'John Hamlin - Senior Software Engineer';
+const defaultDescription =
   'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo. I live in Raleigh, North Carolina.';
+const defaultSocialDescription =
+  'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.';
+
+const {
+  title = defaultTitle,
+  description = defaultDescription,
+  canonicalURL,
+  ogType = 'website',
+  publishedTime,
+  modifiedTime,
+  tags = [],
+  image,
+  imageAlt = 'John Hamlin - Senior Software Engineer',
+} = Astro.props;
+
+const site = Astro.site ?? new URL('https://johnhamlin.com');
+const baseUrl = site.href.replace(/\/$/, '');
+const pageUrl = canonicalURL ?? baseUrl;
+const socialDescription =
+  description === defaultDescription ? defaultSocialDescription : description;
 const GA_ID = import.meta.env.PUBLIC_GA_ID;
+
+function absolute(src: string): string {
+  return new URL(src, site).href;
+}
+
+function toIso(value: Date | string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.toISOString();
+}
+
+const ogImage = image ? absolute(image) : `${baseUrl}/opengraph-image.png`;
+const twitterImage = image ? absolute(image) : `${baseUrl}/twitter-image.png`;
 ---
 
 <!doctype html>
@@ -30,32 +69,49 @@ const GA_ID = import.meta.env.PUBLIC_GA_ID;
     <meta name="creator" content="John Hamlin" />
 
     <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:locale" content="en_US" />
-    <meta property="og:url" content={baseUrl} />
+    <meta property="og:url" content={pageUrl} />
     <meta property="og:site_name" content="John Hamlin" />
     <meta property="og:title" content={title} />
-    <meta
-      property="og:description"
-      content="I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo."
-    />
-    <meta property="og:image" content={`${baseUrl}/opengraph-image.png`} />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="John Hamlin - Senior Software Engineer" />
-    <meta property="og:image:type" content="image/png" />
+    <meta property="og:description" content={socialDescription} />
+    <meta property="og:image" content={ogImage} />
+    {
+      !image && (
+        <>
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+          <meta property="og:image:type" content="image/png" />
+        </>
+      )
+    }
+    <meta property="og:image:alt" content={imageAlt} />
+    {
+      ogType === 'article' && (
+        <>
+          {publishedTime && (
+            <meta property="article:published_time" content={toIso(publishedTime)} />
+          )}
+          {modifiedTime && (
+            <meta property="article:modified_time" content={toIso(modifiedTime)} />
+          )}
+          <meta property="article:author" content="John Hamlin" />
+          {tags.map((tag) => (
+            <meta property="article:tag" content={tag} />
+          ))}
+        </>
+      )
+    }
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@johnhamlin" />
     <meta name="twitter:creator" content="@johnhamlin" />
+    <meta name="twitter:url" content={pageUrl} />
     <meta name="twitter:title" content={title} />
-    <meta
-      name="twitter:description"
-      content="I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo."
-    />
-    <meta name="twitter:image" content={`${baseUrl}/twitter-image.png`} />
-    <meta name="twitter:image:alt" content="John Hamlin - Senior Software Engineer" />
+    <meta name="twitter:description" content={socialDescription} />
+    <meta name="twitter:image" content={twitterImage} />
+    <meta name="twitter:image:alt" content={imageAlt} />
 
     <!-- Apple-specific -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -68,7 +124,13 @@ const GA_ID = import.meta.env.PUBLIC_GA_ID;
     <meta name="theme-color" content="transparent" media="(prefers-color-scheme: dark)" />
 
     <!-- Canonical -->
-    <link rel="canonical" href={baseUrl} />
+    <link rel="canonical" href={pageUrl} />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="John Hamlin"
+      href="/rss.xml"
+    />
 
     <!-- Robots -->
     <meta name="robots" content="index, follow" />

@@ -1,0 +1,59 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { formatDate, isoDate, readingTime, tagSlug } from '../../lib/blog';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+}
+
+const { posts } = Astro.props;
+---
+
+<ul class="flex flex-col gap-6">
+  {
+    posts.map((post) => (
+      <li>
+        <article class="rounded-2xl border border-black/5 bg-white/70 p-6 shadow-sm shadow-black/[0.03] backdrop-blur-sm dark:border-white/10 dark:bg-gray-950/40">
+          <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+            <time datetime={isoDate(post.data.pubDate)}>{formatDate(post.data.pubDate)}</time>
+            <span aria-hidden="true">·</span>
+            <span>{readingTime(post.body)}</span>
+            {post.data.draft && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-950 dark:bg-amber-200/15 dark:text-amber-100">
+                  Draft
+                </span>
+              </>
+            )}
+          </p>
+          <h2 class="mt-2 text-2xl font-medium tracking-tight">
+            <a
+              href={`/blog/${post.id}`}
+              class="transition hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              {post.data.title}
+            </a>
+          </h2>
+          <p class="mt-2 text-gray-700 dark:text-gray-300">{post.data.description}</p>
+          {
+            post.data.tags.length > 0 && (
+              <ul class="mt-4 flex flex-wrap gap-2">
+                {post.data.tags.map((tag) => (
+                  <li>
+                    <a
+                      href={`/blog/tags/${tagSlug(tag)}`}
+                      class="rounded-full bg-gray-200/80 px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-300 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/20"
+                    >
+                      {tag}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </article>
+      </li>
+    ))
+  }
+</ul>
