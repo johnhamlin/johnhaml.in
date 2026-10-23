@@ -1,0 +1,54 @@
+---
+import Layout from './Layout.astro';
+import Footer from '../components/astro/Footer.astro';
+import BackgroundLoader from '../components/react/BackgroundLoader';
+import Header from '../components/react/Header';
+import ThemeSwitch from '../components/react/ThemeSwitch';
+import { canonicalUrl } from '../lib/blog';
+import '../styles/blog.css';
+
+interface Props {
+  title: string;
+  description: string;
+  ogType?: 'website' | 'article';
+  publishedTime?: Date | string;
+  modifiedTime?: Date | string;
+  tags?: string[];
+  image?: string;
+  imageAlt?: string;
+}
+
+const {
+  title,
+  description,
+  ogType = 'website',
+  publishedTime,
+  modifiedTime,
+  tags,
+  image,
+  imageAlt,
+} = Astro.props;
+
+const site = Astro.site ?? new URL('https://johnhamlin.com');
+const canonical = canonicalUrl(Astro.url.pathname, site);
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonicalURL={canonical}
+  ogType={ogType}
+  publishedTime={publishedTime}
+  modifiedTime={modifiedTime}
+  tags={tags}
+  image={image}
+  imageAlt={imageAlt}
+>
+  <BackgroundLoader client:load />
+  <Header client:load pathname={Astro.url.pathname} />
+  <main class="mx-auto w-full max-w-[45rem] px-4 pb-16 pt-28 sm:pt-32">
+    <slot />
+  </main>
+  <Footer />
+  <ThemeSwitch client:load />
+</Layout>

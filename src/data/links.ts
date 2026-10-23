@@ -19,4 +19,8 @@ export const links = [
     name: 'Experience',
     hash: '#experience',
   },
+  {
+    name: 'Blog',
+    hash: '/blog',
+  },
 ] as const;

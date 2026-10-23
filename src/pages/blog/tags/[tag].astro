@@ -1,0 +1,43 @@
+---
+import BlogLayout from '../../../layouts/BlogLayout.astro';
+import PostList from '../../../components/astro/PostList.astro';
+import { getVisiblePosts, tagSlug, uniqueTags } from '../../../lib/blog';
+
+export async function getStaticPaths() {
+  const posts = await getVisiblePosts();
+  return uniqueTags(posts).map(({ slug, label }) => ({
+    params: { tag: slug },
+    props: { label },
+  }));
+}
+
+const { label } = Astro.props;
+const { tag } = Astro.params;
+const posts = (await getVisiblePosts()).filter((post) =>
+  post.data.tags.some((item) => tagSlug(item) === tag)
+);
+const description = `Posts tagged ${label}.`;
+---
+
+<BlogLayout title={`Posts tagged ${label} | John Hamlin`} description={description}>
+  <a
+    href="/blog"
+    class="text-sm text-gray-500 transition hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-100"
+  >
+    ← Blog
+  </a>
+  <header class="mb-10 mt-6">
+    <p class="text-sm text-gray-500 dark:text-gray-400">Tag</p>
+    <h1 class="mt-1 text-3xl font-medium tracking-tight">{label}</h1>
+    <p class="mt-2 text-gray-600 dark:text-gray-300">
+      {posts.length} {posts.length === 1 ? 'post' : 'posts'}
+    </p>
+  </header>
+  {
+    posts.length === 0 ? (
+      <p class="text-gray-500 dark:text-gray-400">No posts with this tag.</p>
+    ) : (
+      <PostList posts={posts} />
+    )
+  }
+</BlogLayout>

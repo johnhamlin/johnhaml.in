@@ -1,0 +1,135 @@
+---
+import { render } from 'astro:content';
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import { getAdjacentPosts, getVisiblePosts, formatDate, isoDate, readingTime, sameUtcDay, tagSlug } from '../../lib/blog';
+
+export async function getStaticPaths() {
+  const posts = await getVisiblePosts();
+  return posts.map((post) => {
+    if (post.id.includes('/')) {
+      throw new Error(
+        `Blog post "${post.id}" is nested. Put files directly in src/content/blog so the filename is the slug.`
+      );
+    }
+    return {
+      params: { slug: post.id },
+      props: { post },
+    };
+  });
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { newer, older } = getAdjacentPosts(await getVisiblePosts(), post.id);
+const updated = post.data.updatedDate;
+---
+
+<BlogLayout
+  title={`${post.data.title} | John Hamlin`}
+  description={post.data.description}
+  ogType="article"
+  publishedTime={post.data.pubDate}
+  modifiedTime={updated}
+  tags={post.data.tags}
+  image={post.data.heroImage}
+  imageAlt={post.data.heroImage ? post.data.title : undefined}
+>
+  <article>
+    <a
+      href="/blog"
+      class="text-sm text-gray-500 transition hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-100"
+    >
+      ← Blog
+    </a>
+
+    <header class="mt-6">
+      {
+        post.data.draft && (
+          <p class="mb-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-200/20 dark:bg-amber-200/10 dark:text-amber-100">
+            Draft. Visible in development, omitted from the production build.
+          </p>
+        )
+      }
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
+        <time datetime={isoDate(post.data.pubDate)}>{formatDate(post.data.pubDate)}</time>
+        <span aria-hidden="true">·</span>
+        <span>{readingTime(post.body)}</span>
+        {
+          updated && !sameUtcDay(post.data.pubDate, updated) && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>
+                Updated <time datetime={isoDate(updated)}>{formatDate(updated)}</time>
+              </span>
+            </>
+          )
+        }
+      </p>
+      <h1 class="mt-3 text-3xl font-medium tracking-tight sm:text-4xl">{post.data.title}</h1>
+      <p class="mt-4 text-lg text-gray-600 dark:text-gray-300">{post.data.description}</p>
+      {
+        post.data.tags.length > 0 && (
+          <ul class="mt-4 flex flex-wrap gap-2">
+            {post.data.tags.map((tag) => (
+              <li>
+                <a
+                  href={`/blog/tags/${tagSlug(tag)}`}
+                  class="rounded-full bg-gray-200/80 px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-300 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/20"
+                >
+                  {tag}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      {
+        post.data.heroImage && (
+          <img
+            src={post.data.heroImage}
+            alt={post.data.title}
+            class="mt-8 w-full rounded-xl border border-black/5 dark:border-white/10"
+          />
+        )
+      }
+    </header>
+
+    <div
+      class="blog-content prose prose-neutral mt-10 max-w-none dark:prose-invert prose-headings:font-medium prose-headings:tracking-tight prose-a:font-medium prose-a:text-gray-900 prose-a:underline-offset-2 hover:prose-a:text-black dark:prose-a:text-gray-100 dark:hover:prose-a:text-white prose-pre:border prose-pre:border-black/10 prose-pre:bg-transparent prose-pre:shadow-none dark:prose-pre:border-white/10"
+    >
+      <Content />
+    </div>
+
+    {
+      (older || newer) && (
+        <nav
+          class="mt-14 grid gap-4 border-t border-black/10 pt-8 dark:border-white/10 sm:grid-cols-2"
+          aria-label="More posts"
+        >
+          {older ? (
+            <a
+              href={`/blog/${older.id}`}
+              rel="prev"
+              class="rounded-2xl border border-black/5 bg-white/70 p-4 transition hover:bg-white dark:border-white/10 dark:bg-gray-950/40 dark:hover:bg-white/10"
+            >
+              <span class="block text-sm text-gray-500 dark:text-gray-400">Previous</span>
+              <span class="mt-1 block font-medium">{older.data.title}</span>
+            </a>
+          ) : (
+            <span class="hidden sm:block" aria-hidden="true" />
+          )}
+          {newer && (
+            <a
+              href={`/blog/${newer.id}`}
+              rel="next"
+              class="rounded-2xl border border-black/5 bg-white/70 p-4 transition hover:bg-white dark:border-white/10 dark:bg-gray-950/40 dark:hover:bg-white/10 sm:text-right"
+            >
+              <span class="block text-sm text-gray-500 dark:text-gray-400">Next</span>
+              <span class="mt-1 block font-medium">{newer.data.title}</span>
+            </a>
+          )}
+        </nav>
+      )
+    }
+  </article>
+</BlogLayout>

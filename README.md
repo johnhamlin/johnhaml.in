@@ -1,3 +1,28 @@
+## Writing a blog post
+
+Posts are Markdown or MDX files in `src/content/blog`. The filename is the URL slug: `src/content/blog/my-post.mdx` is served at `/blog/my-post`.
+
+```md
+---
+title: Post title
+description: One or two sentences used on the blog index, in RSS, and for social cards.
+pubDate: 2026-10-23
+updatedDate: 2026-10-24
+tags:
+  - ai-engineering
+draft: true
+heroImage: /images/my-post.webp
+---
+
+Write the post here. Markdown and MDX both work, including fenced code blocks.
+```
+
+`title`, `description`, `pubDate`, and `tags` are required. `updatedDate` and `heroImage` are optional. `heroImage` is a root-relative file in `public/` or an absolute URL. `draft` defaults to `false`. Tag URLs are lowercase slugs, so `ai-engineering` is `/blog/tags/ai-engineering`.
+
+Drafts are visible in `npm run dev` (including the index and tag pages) and left out of `npm run build`: no post page, no listing, no `/rss.xml` item, and no sitemap URL. Set `draft: false` when a post should ship.
+
+---
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started

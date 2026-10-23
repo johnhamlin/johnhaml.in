@@ -1,0 +1,49 @@
+.blog-content :is(h2, h3, h4, h5, h6) {
+  scroll-margin-top: 7rem;
+}
+
+.blog-content .heading-anchor {
+  margin-left: 0.35em;
+  font-weight: 500;
+  color: inherit !important;
+  text-decoration: none !important;
+  opacity: 0.4;
+}
+
+.blog-content :is(h2, h3, h4, h5, h6):hover .heading-anchor,
+.blog-content .heading-anchor:focus {
+  opacity: 0.9;
+}
+
+.blog-content :where(code):not(:where(pre *)) {
+  border-radius: 0.3rem;
+  background: rgb(229 231 235 / 0.9);
+  padding: 0.1em 0.35em;
+  font-weight: 500;
+}
+
+.blog-content :where(code):not(:where(pre *))::before,
+.blog-content :where(code):not(:where(pre *))::after {
+  content: none;
+}
+
+html.dark .blog-content :where(code):not(:where(pre *)) {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.blog-content .astro-code {
+  border-radius: 0.75rem;
+  padding: 1rem 1.15rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* Follow the site's .dark class instead of only the OS color scheme. */
+html.dark .blog-content .astro-code,
+html.dark .blog-content .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}
