@@ -12,13 +12,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: risk-tier-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   test:
     name: Unit tests
+    concurrency:
+      group: risk-tier-test-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,6 +38,9 @@ jobs:
 
   risk-tier:
     name: Label risk tier
+    concurrency:
+      group: risk-tier-label-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,6 +131,7 @@ jobs:
 
           try {
             const files = [];
+            let entryCount = 0;
             let url = `/repos/${repository}/pulls/${number}/files?per_page=100`;
             while (url) {
               const page = await request('GET', url);
@@ -137,6 +140,7 @@ jobs:
                 break;
               }
               if (!Array.isArray(page.data)) throw new Error('GitHub pull file list was not an array');
+              entryCount += page.data.length;
               for (const entry of page.data) {
                 if (typeof entry?.filename === 'string' && entry.filename) files.push(entry.filename);
                 if (typeof entry?.previous_filename === 'string' && entry.previous_filename) {
@@ -144,6 +148,12 @@ jobs:
                 }
               }
               url = page.next;
+            }
+            const changedFiles = pullRequest.changed_files;
+            const complete = Number.isInteger(changedFiles) && changedFiles >= 0 && entryCount >= changedFiles;
+            if (!complete) {
+              const shown = Number.isInteger(changedFiles) ? String(changedFiles) : 'missing';
+              console.log(`Pull file list returned ${entryCount} files, fewer than pull_request.changed_files (${shown}). The files API stops at 3000. Fail closed as high.`);
             }
             for (const file of [...new Set(files)].sort()) console.log(`high\t${file}`);
           } catch (error) {
@@ -153,8 +163,50 @@ jobs:
           console.log('Computed risk tier: high');
           console.log('Label: risk:high');
 
+          function riskNames(names) {
+            return names.filter((name) => name === 'risk:low' || name === 'risk:medium' || name === 'risk:high');
+          }
+
+          async function issueNames() {
+            const listed = await request('GET', `${repo}/issues/${number}/labels?per_page=100`);
+            if (listed.status === 403) return { denied: true, names: [] };
+            if (!Array.isArray(listed.data)) throw new Error('GitHub label list was not an array');
+            return { denied: false, names: listed.data.map((label) => label.name) };
+          }
+
+          async function deleteLabel(name) {
+            return request(
+              'DELETE',
+              `${repo}/issues/${number}/labels/${encodeURIComponent(name)}`,
+              undefined,
+              [404],
+            );
+          }
+
+          async function recoverPartial() {
+            const now = await issueNames();
+            const staleLeft = riskNames(now.names).filter((name) => name !== 'risk:high');
+            for (const name of staleLeft) {
+              const removed = await deleteLabel(name);
+              if (removed.status === 403) break;
+            }
+            let left = riskNames((await issueNames()).names);
+            if (left.length > 1) {
+              for (const name of left) {
+                const removed = await deleteLabel(name);
+                if (removed.status === 403) break;
+              }
+              left = riskNames((await issueNames()).names);
+            }
+            if (left.length > 1) {
+              console.error(`Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`);
+            } else {
+              console.error('Risk label update was denied (403) after a partial write. Fail closed.');
+            }
+            return 'partial';
+          }
+
           async function syncLabel() {
-            const repo = `/repos/${repository}`;
             const existing = await request('GET', `${repo}/labels/${encodeURIComponent('risk:high')}`, undefined, [404]);
             if (existing.status === 403) return false;
             if (existing.status === 404) {
@@ -166,40 +218,40 @@ jobs:
               );
               if (created.status === 403) return false;
             }
-            const listed = await request('GET', `${repo}/issues/${number}/labels?per_page=100`);
-            if (listed.status === 403) return false;
-            if (!Array.isArray(listed.data)) throw new Error('GitHub label list was not an array');
-            const names = listed.data.map((label) => label.name);
-            const stale = names.filter((name) => name === 'risk:low' || name === 'risk:medium');
-            if (!names.includes('risk:high')) {
+            const listed = await issueNames();
+            if (listed.denied) return false;
+            const stale = listed.names.filter((name) => name === 'risk:low' || name === 'risk:medium');
+            if (!listed.names.includes('risk:high')) {
               const added = await request('POST', `${repo}/issues/${number}/labels`, { labels: ['risk:high'] });
-              if (added.status === 403) return false;
+              if (added.status === 403) {
+                if (riskNames(listed.names).length > 1) return recoverPartial();
+                return false;
+              }
               console.log('Added label: risk:high');
             } else {
               console.log('Added label: (none)');
             }
             for (const name of stale) {
-              const removed = await request(
-                'DELETE',
-                `${repo}/issues/${number}/labels/${encodeURIComponent(name)}`,
-                undefined,
-                [404],
-              );
-              if (removed.status === 403) return false;
+              const removed = await deleteLabel(name);
+              if (removed.status === 403) return recoverPartial();
             }
             console.log(`Removed stale labels: ${stale.join(', ') || '(none)'}`);
             console.log('Risk labels now: risk:high');
             return true;
           }
 
+          const repo = `/repos/${repository}`;
+          let labelFailed = false;
           try {
             const wrote = await syncLabel();
-            if (!wrote) console.warn('Risk label write was denied (403). Continuing with the body check.');
+            if (wrote === 'partial') labelFailed = true;
+            else if (!wrote) console.warn('Risk label write was denied (403). Continuing with the body check.');
           } catch (error) {
             console.error(error instanceof Error ? error.message : String(error));
             exitCode = 1;
           }
-          finishBody();
+          if (labelFailed) exitCode = 1;
+          else finishBody();
           process.exitCode = exitCode;
           END_BOOTSTRAP
           else

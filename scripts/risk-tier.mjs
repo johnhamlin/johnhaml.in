@@ -230,14 +230,61 @@ export function assertSingleRiskLabel(labels, tier) {
   }
 }
 
+async function bestEffortRemove(labels, removeLabel) {
+  for (const label of labels) {
+    try {
+      await removeLabel(label);
+    } catch (error) {
+      if (!isLabelWriteDenied(error)) throw error;
+    }
+  }
+}
+
 export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel }) {
   const current = await listLabels();
   const plan = planLabelUpdates(current, tier);
-  if (plan.add.length > 0) await addLabels(plan.add);
-  for (const label of plan.remove) await removeLabel(label);
+  let changed = false;
+  try {
+    if (plan.add.length > 0) {
+      await addLabels(plan.add);
+      changed = true;
+    }
+    for (const label of plan.remove) {
+      await removeLabel(label);
+      changed = true;
+    }
+  } catch (error) {
+    if (!isLabelWriteDenied(error)) throw error;
+    const during = riskLabelsOn(await listLabels());
+    if (!changed && during.length <= 1) throw error;
+    const desired = riskLabel(tier);
+    await bestEffortRemove(
+      during.filter((label) => label !== desired),
+      removeLabel,
+    );
+    let left = riskLabelsOn(await listLabels());
+    if (left.length > 1) await bestEffortRemove(left, removeLabel);
+    left = riskLabelsOn(await listLabels());
+    if (left.length > 1) {
+      throw new Error(
+        `Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`,
+      );
+    }
+    throw new Error('Risk label update was denied (403) after a partial write. Fail closed.');
+  }
   const labels = await listLabels();
   assertSingleRiskLabel(labels, tier);
   return { plan, labels };
+}
+
+export function assessFileList(entryCount, changedFiles) {
+  const complete = Number.isInteger(changedFiles) && changedFiles >= 0 && entryCount >= changedFiles;
+  if (complete) return { complete: true, reason: '' };
+  const shown = Number.isInteger(changedFiles) ? String(changedFiles) : 'missing';
+  return {
+    complete: false,
+    reason: `Pull file list returned ${entryCount} files, fewer than pull_request.changed_files (${shown}). The files API stops at 3000. Fail closed as high.`,
+  };
 }
 
 export function filesFromPullEntries(entries) {
@@ -269,11 +316,13 @@ export function pullRequestFromEvent(event) {
   if (!Number.isInteger(number) || number <= 0) {
     throw new Error('GitHub event has no pull request number');
   }
+  const changedFiles = pullRequest.changed_files;
   return {
     number,
     body: typeof pullRequest.body === 'string' ? pullRequest.body : '',
     baseSha: assertSha(pullRequest.base?.sha, 'base SHA'),
     headSha: assertSha(pullRequest.head?.sha, 'head SHA'),
+    changedFiles: Number.isInteger(changedFiles) ? changedFiles : null,
   };
 }
 
@@ -379,7 +428,7 @@ function createGitHub(env) {
         entries.push(...page.data);
         url = page.next;
       }
-      return filesFromPullEntries(entries);
+      return { files: filesFromPullEntries(entries), entryCount: entries.length };
     },
   };
 }
@@ -442,8 +491,18 @@ async function runPullRequest(rules, env) {
   const event = JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const pullRequest = pullRequestFromEvent(event);
   const github = createGitHub(env);
-  const files = await github.listPullFiles(pullRequest.number);
-  const tier = printTierReport(files, rules);
+  const listed = await github.listPullFiles(pullRequest.number);
+  const completeness = assessFileList(listed.entryCount, pullRequest.changedFiles);
+  let tier;
+  if (!completeness.complete) {
+    console.log(completeness.reason);
+    for (const file of listed.files) console.log(`high\t${file}`);
+    console.log('Computed risk tier: high');
+    console.log(`Label: ${riskLabel('high')}`);
+    tier = 'high';
+  } else {
+    tier = printTierReport(listed.files, rules);
+  }
   const assessment = await reportTierResult({
     tier,
     body: pullRequest.body,
