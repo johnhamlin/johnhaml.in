@@ -16,6 +16,18 @@
 
 Which high-risk trigger applies? (for example CI and Cloudflare Pages deploy config, or a draft or env leak)
 
+## Review
+
+Rounds to pass:
+
+<!-- How many review rounds it took to pass. Cap is 3. -->
+
+Findings:
+
+- Important:
+- Nit:
+- Pre-existing:
+
 ## How to revert
 
 <!-- How to undo this change safely. -->

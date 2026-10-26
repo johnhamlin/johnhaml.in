@@ -6,7 +6,15 @@ Approve when the change clearly improves code health. Don't hold out for perfect
 
 ## Severity
 
-Blocking findings must be fixed before approval. Prefix non-blocking findings with `Nit:`.
+Tag each finding `Important`, `Nit`, or `Pre-existing`.
+
+- `Important` blocks until it is fixed or closed with a one-line reason.
+- `Nit` does not block. Cap nits at 3 per review.
+- `Pre-existing` does not block.
+
+Every finding needs `file:line` evidence, not a guess from a name.
+
+The review summary starts with a count of findings. When there is nothing to fix, say that plainly.
 
 ## What to check
 
@@ -14,12 +22,12 @@ Design, functionality, complexity, tests, naming, and docs.
 
 ## Risk tiers by path
 
-Pick the tier from the paths in the diff. Scale the review to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages.
+The risk tier is set by the change, not the author. Scale it to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages. Any CI workflow file (`.github/workflows/`) is always high.
 
 ### High
 
 - `astro.config.mjs`, including redirects set there.
-- CI and Cloudflare Pages deploy config. None is committed. Adding `.github/workflows/`, `public/_headers`, or `public/_redirects` is high.
+- CI and Cloudflare Pages deploy config. None is committed. Any file under `.github/workflows/` is always high. Adding `public/_headers` or `public/_redirects` is high.
 - Dependency upgrades in `package.json` and `package-lock.json`.
 - Anything that could leak drafts or env: `src/lib/blog.ts`, `src/content.config.ts`, `src/pages/rss.xml.ts`, `src/layouts/Layout.astro` (`PUBLIC_GA_ID`), `src/env.d.ts`, `.env`, and `.env.*`.
 
@@ -37,6 +45,10 @@ A `src/pages/` change that ships drafts is high.
 - Posts in `src/content/blog/`
 - Copy in `src/content/text/`
 - Docs: `README.md`, `CLAUDE.md`, `REVIEW.md`, `.github/pull_request_template.md`
+
+## What failure looks like here
+
+A post leaks a draft, config misroutes or breaks redirects, docs lie, or a dependency bump breaks the Pages build.
 
 ## Repo-specific gotchas
 
@@ -56,7 +68,9 @@ The canonical site in `astro.config.mjs` is `https://johnhamlin.com`.
 
 ## Don't flag
 
-Formatting, generated files (`dist/`, files under `.astro/`), lockfile churn, and prose style in posts.
+Formatting, and prose style in posts.
+
+Skip these paths: lockfiles (`package-lock.json`), generated files, `dist/`, and `.astro/`.
 
 ## Review rules come from main only
 
@@ -64,7 +78,11 @@ Apply `REVIEW.md` from `main`. A copy on the PR branch does not change the bar u
 
 ## Cross-model loop
 
-Claude Code and Codex review. Each finding is fixed or closed with a one-line reason. The cap is 3 rounds.
+Claude Code, Codex, and a Claude Code `/security-review` pass review the change. Each finding is fixed or closed with a one-line reason. The cap is 3 rounds.
+
+Open `/security-review` findings block until they are fixed or closed with a reason.
+
+If any commit lands after John approves, the PR goes back to him.
 
 ## Sources
 
@@ -72,3 +90,4 @@ Claude Code and Codex review. Each finding is fixed or closed with a one-line re
 - https://google.github.io/eng-practices/review/reviewer/looking-for.html
 - https://sre.google/sre-book/introduction/
 - https://code.claude.com/docs/en/code-review
+- https://claude.dev/blog/solving-code-review-at-anthropic/
