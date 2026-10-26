@@ -8,7 +8,7 @@
 
 ## Risk tier
 
-<!-- Check one. Path tiers are in REVIEW.md. The risk:* label is the source of truth. The workflow computes it from the changed paths. This check fails when no box is checked, or when the checked tier is lower than the computed tier. -->
+<!-- Check one box. Path tiers are in REVIEW.md. The workflow computes the tier from the changed paths and does not set a label. The check fails when the box is missing or cannot be parsed, when the checked tier is lower than the computed tier, or when the tiers file or a changed path cannot be trusted. -->
 
 - [ ] low — posts, copy, and docs
 - [ ] medium — components, layouts, styles, and routing (`src/pages`)

@@ -93,18 +93,16 @@ If any commit lands after John approves, the PR goes back to him.
 - https://code.claude.com/docs/en/code-review
 - https://claude.dev/blog/solving-code-review-at-anthropic/
 
-## Risk label
+## Risk check
 
-The `risk:low`, `risk:medium`, or `risk:high` label is the source of truth. The label job checks out only the base commit and reads changed paths from the pull request files API, including a rename's previous name. It runs that commit's `scripts/risk-tier.mjs` and `risk-tiers`. Pull request files are not on that runner. A checked box in the pull request body does not set the tier.
+`.github/workflows/risk-tier.yml` computes the tier from the changed paths and `risk-tiers`. It does not read or write a label. The pull request body must check exactly one of `low`, `medium`, or `high` under `## Risk tier`. The check fails when that tier is missing or cannot be parsed, or when it is lower than the computed tier. A checked box does not set the tier.
 
-The check fails when no box is checked, or when the highest checked box is lower than the computed tier. The pull request tier is the highest tier among the changed files. A path that matches nothing in `risk-tiers` is medium. Every tier rule and always-high rule is case-insensitive: the check lowercases each changed path once, before any rule is tested. `CODEOWNERS` patterns are case-sensitive.
+The job checks out only the base commit and installs dependencies from that commit's lockfile, including `minimatch`. It fetches the base and head commits and reads `git diff --name-status -M` (three dots). A rename or copy counts both paths. The check never checks out the pull request and does not call the pulls or files API. `minimatch` matches each glob with `dot` and case-insensitive options. The highest matching glob wins. A path that matches nothing is medium. `CODEOWNERS` patterns stay case-sensitive.
 
-The base copy keeps these paths high even if the pull request edits `risk-tiers` or the script: `**/AGENTS.md`, `**/CLAUDE.md`, `**/REVIEW.md`, `.cursor/**`, `.claude/**`, `.github/pull_request_template.md`, `.github/**`, `risk-tiers`, and `scripts/risk-tier.mjs`. If the base commit has no script or no `risk-tiers` yet, or `risk-tiers` is invalid, the pull request is high.
+These paths stay high even if `risk-tiers` maps them lower: `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.cursor/**`, `.claude/**`, `.github/**` (including workflows), `risk-tiers`, and `scripts/risk-tier.mjs`.
 
-The tier is also high when the file list is shorter than `changed_files` or hits the 3000-file cap, and when a changed path contains a backslash or a `..` segment. Those paths are matched literally and are not normalized.
+A missing or unreadable `risk-tiers`, a changed path that contains `\` or a `..` segment, or any other error fails the check. Paths are matched literally and are not normalized.
 
-A 403 on a label write, including a fork or Dependabot run that leaves no risk label, warns and still checks the body. A pull request with no risk label cannot auto-merge. After every label write the job re-reads the labels. When the writes succeeded, that re-read must show exactly one `risk:low`, `risk:medium`, or `risk:high` label at the computed tier: it fails when the re-read leaves no risk label, when any risk label is lower than the computed tier, when more than one risk label remains, or when an unknown `risk:*` label such as `risk:foo` is present. A 403 during the write still warns only when the re-read leaves no risk label, and fails when a lower label or more than one risk label remains. A recovery write after that 403 is tracked on its own. Once any write has succeeded, a failed re-read, whether a 403 or any other error, fails closed instead of treating the write as a plain denial.
-
-On `pull_request`, GitHub runs the pull request's own workflow file, so a pull request that edits the workflow can skip this check. The backstop is `CODEOWNERS` (`@johnhamlin`) plus branch protection that requires code-owner review.
+On `pull_request`, GitHub runs this workflow file from the pull request, so a pull request that edits it can skip the check. The backstop is `CODEOWNERS` (`@johnhamlin`) plus branch protection that requires code-owner review.
 
 `node --test scripts/risk-tier.test.mjs` covers the tier rules. Review rules still come from `main`.
