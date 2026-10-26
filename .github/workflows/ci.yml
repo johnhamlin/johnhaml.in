@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# Cancel superseded pull request runs. Pushes to main run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     name: Check, build, and lint
@@ -20,15 +25,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          # Node 22 LTS. eslint-plugin-astro 3 / ESLint 10 require Node >= 22.22.3.
-          node-version: "22"
+          # Cloudflare Pages builds this repo with Node 22.16.0.
+          node-version: "22.16.0"
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
       - name: Astro check
-        run: npx astro check
+        run: npm run check
 
       - name: Build
         run: npm run build
