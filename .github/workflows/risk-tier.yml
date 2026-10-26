@@ -1,10 +1,11 @@
 name: Risk tier
 
 # On pull_request, GitHub runs this file from the pull request. The label job
-# checks out only the base commit and reads changed paths from the files API.
-# Pull request files are not downloaded there. Unit tests run in a read-only job.
-# A pull request that edits this workflow file can skip the check. CODEOWNERS
-# and branch protection are the backstop.
+# runs on ubuntu-slim, checks out only the base commit, and reads changed paths
+# from the files API. Those paths are matched literally. Pull request files are
+# not downloaded there. Unit tests run in a read-only job. A pull request that
+# edits this workflow file can skip the check. CODEOWNERS and branch protection
+# are the backstop.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -41,7 +42,7 @@ jobs:
     concurrency:
       group: risk-tier-label-${{ github.event.pull_request.number }}
       cancel-in-progress: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: read
       pull-requests: write
@@ -57,6 +58,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          node --version
           if [ ! -f scripts/risk-tier.mjs ] || [ ! -f risk-tiers ]; then
             node --input-type=module <<'END_BOOTSTRAP'
           import fs from 'node:fs';
@@ -129,9 +131,34 @@ jobs:
             return { status: response.status, data, next: nextLink(response.headers.get('link')) };
           }
 
+          function invalidTiersReason() {
+            if (!fs.existsSync('risk-tiers')) return '';
+            const text = fs.readFileSync('risk-tiers', 'utf8');
+            const lines = text.split(/\r?\n/);
+            for (let index = 0; index < lines.length; index += 1) {
+              const line = lines[index].trim();
+              if (!line || line.startsWith('#')) continue;
+              const match = line.match(/^(low|medium|high)\s+(.+)$/);
+              if (!match || !match[2].trim()) return `risk-tiers:${index + 1}: expected "<tier> <glob>"`;
+            }
+            return '';
+          }
+
+          function isUnsafePath(file) {
+            if (file.includes('\\')) return true;
+            return file.split('/').some((segment) => segment === '..');
+          }
+
+          const tiersReason = invalidTiersReason();
+          if (tiersReason) {
+            console.log(`Base risk-tiers is invalid (${tiersReason}). Fail closed as high.`);
+          }
+
           try {
             const files = [];
             let entryCount = 0;
+            let capped = false;
+            let pages = 0;
             let url = `/repos/${repository}/pulls/${number}/files?per_page=100`;
             while (url) {
               const page = await request('GET', url);
@@ -140,6 +167,7 @@ jobs:
                 break;
               }
               if (!Array.isArray(page.data)) throw new Error('GitHub pull file list was not an array');
+              pages += 1;
               entryCount += page.data.length;
               for (const entry of page.data) {
                 if (typeof entry?.filename === 'string' && entry.filename) files.push(entry.filename);
@@ -147,15 +175,35 @@ jobs:
                   files.push(entry.previous_filename);
                 }
               }
+              if (entryCount >= 3000 || (pages >= 30 && page.next)) {
+                capped = true;
+                break;
+              }
               url = page.next;
             }
             const changedFiles = pullRequest.changed_files;
-            const complete = Number.isInteger(changedFiles) && changedFiles >= 0 && entryCount >= changedFiles;
+            const countKnown = Number.isInteger(changedFiles) && changedFiles >= 0;
+            const complete = countKnown && entryCount >= changedFiles;
             if (!complete) {
-              const shown = Number.isInteger(changedFiles) ? String(changedFiles) : 'missing';
+              const shown = countKnown ? String(changedFiles) : 'missing';
               console.log(`Pull file list returned ${entryCount} files, fewer than pull_request.changed_files (${shown}). The files API stops at 3000. Fail closed as high.`);
             }
-            for (const file of [...new Set(files)].sort()) console.log(`high\t${file}`);
+            if (capped || entryCount >= 3000) {
+              console.log(`Pull file list hit the 3000-file page cap (${entryCount} files). Fail closed as high.`);
+            }
+            const unique = [...new Set(files)].sort();
+            const unsafe = unique.filter(isUnsafePath);
+            if (unsafe.length > 0) {
+              console.log(`Changed path contains '\\' or a '..' segment (${unsafe[0]}). Paths are matched literally and are not normalized. Fail closed as high.`);
+            }
+            const oddAgent = unique.filter((file) => {
+              const segment = file.split('/').pop() ?? '';
+              return /^(?:agents|claude|review)\.md$/i.test(segment) && !/^(?:AGENTS|CLAUDE|REVIEW)\.md$/.test(segment);
+            });
+            if (oddAgent.length > 0) {
+              console.log(`Matched ${oddAgent[0]} as an agent doc with a case-insensitive name.`);
+            }
+            for (const file of unique) console.log(`high\t${file}`);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             console.log(`Could not list changed files. The tier is still high. ${message.split('\n')[0]}`);

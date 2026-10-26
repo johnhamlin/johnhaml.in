@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const TIERS_FILE = 'risk-tiers';
 export const CHECK_SCRIPT = 'scripts/risk-tier.mjs';
+export const FILE_LIST_CAP = 3000;
 
 // These stay high even if risk-tiers maps them lower.
 export const ALWAYS_HIGH_GLOBS = [
@@ -39,8 +40,13 @@ export function moduleRelativePath() {
   return path.relative(scriptRoot(), fileURLToPath(import.meta.url)).split(path.sep).join('/');
 }
 
+function agentDocGlob(glob) {
+  const segment = glob.split('/').pop() ?? '';
+  return /^(?:agents|claude|review)\.md$/i.test(segment);
+}
+
 export function globSource(glob) {
-  const normalized = glob.replace(/\\/g, '/').replace(/^\.\//, '');
+  const normalized = glob.replace(/^\.\//, '');
   let source = '';
   let index = 0;
   while (index < normalized.length) {
@@ -73,11 +79,15 @@ export function globSource(glob) {
 
 export function matchGlob(glob, filePath) {
   // The s flag lets ** (compiled to .*) match a newline inside a path.
-  return new RegExp(`^${globSource(glob)}$`, 's').test(normalizePath(filePath));
+  // Agent docs compare case-insensitively. The path itself is the API string.
+  const flags = agentDocGlob(glob) ? 'is' : 's';
+  return new RegExp(`^${globSource(glob)}$`, flags).test(filePath);
 }
 
-function normalizePath(filePath) {
-  return filePath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^\//, '');
+export function isUnsafeChangedPath(filePath) {
+  if (typeof filePath !== 'string') return true;
+  if (filePath.includes('\\')) return true;
+  return filePath.split('/').some((segment) => segment === '..');
 }
 
 export function parseRiskTiers(text) {
@@ -131,13 +141,13 @@ export function riskLabel(tier) {
 }
 
 export function tierForPath(filePath, rules, alwaysHigh = ALWAYS_HIGH_GLOBS) {
-  const normalized = normalizePath(filePath);
+  if (isUnsafeChangedPath(filePath)) return 'high';
   for (const glob of alwaysHigh) {
-    if (matchGlob(glob, normalized)) return 'high';
+    if (matchGlob(glob, filePath)) return 'high';
   }
   let best = null;
   for (const rule of rules) {
-    if (!matchGlob(rule.glob, normalized)) continue;
+    if (!matchGlob(rule.glob, filePath)) continue;
     if (best === null || rankTier(rule.tier) > rankTier(best)) best = rule.tier;
   }
   return best ?? 'medium';
@@ -277,14 +287,24 @@ export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel 
   return { plan, labels };
 }
 
-export function assessFileList(entryCount, changedFiles) {
-  const complete = Number.isInteger(changedFiles) && changedFiles >= 0 && entryCount >= changedFiles;
-  if (complete) return { complete: true, reason: '' };
-  const shown = Number.isInteger(changedFiles) ? String(changedFiles) : 'missing';
-  return {
-    complete: false,
-    reason: `Pull file list returned ${entryCount} files, fewer than pull_request.changed_files (${shown}). The files API stops at 3000. Fail closed as high.`,
-  };
+export function assessFileList(entryCount, changedFiles, capped = false) {
+  const countKnown = Number.isInteger(changedFiles) && changedFiles >= 0;
+  const short = !countKnown || entryCount < changedFiles;
+  const capHit = capped || entryCount >= FILE_LIST_CAP;
+  if (!short && !capHit) return { complete: true, reason: '' };
+  const reasons = [];
+  if (short) {
+    const shown = countKnown ? String(changedFiles) : 'missing';
+    reasons.push(
+      `Pull file list returned ${entryCount} files, fewer than pull_request.changed_files (${shown}). The files API stops at 3000. Fail closed as high.`,
+    );
+  }
+  if (capHit) {
+    reasons.push(
+      `Pull file list hit the 3000-file page cap (${entryCount} files). Fail closed as high.`,
+    );
+  }
+  return { complete: false, reason: reasons.join(' ') };
 }
 
 export function filesFromPullEntries(entries) {
@@ -422,13 +442,20 @@ function createGitHub(env) {
     async listPullFiles(number) {
       const entries = [];
       let url = `/repos/${repository}/pulls/${number}/files?per_page=100`;
+      let capped = false;
+      let pages = 0;
       while (url) {
         const page = await request(url);
         if (!Array.isArray(page.data)) throw new Error('GitHub pull file list was not an array');
+        pages += 1;
         entries.push(...page.data);
+        if (entries.length >= FILE_LIST_CAP || (pages >= FILE_LIST_CAP / 100 && page.next)) {
+          capped = true;
+          break;
+        }
         url = page.next;
       }
-      return { files: filesFromPullEntries(entries), entryCount: entries.length };
+      return { files: filesFromPullEntries(entries), entryCount: entries.length, capped };
     },
   };
 }
@@ -486,16 +513,40 @@ async function runLocal(args, rules) {
   console.log(`PR body check passed (checked ${assessment.claimed}, computed ${tier}).`);
 }
 
-async function runPullRequest(rules, env) {
+function failClosedReasons(listed, changedFiles, tiersError) {
+  const reasons = [];
+  if (tiersError) {
+    const message = tiersError instanceof Error ? tiersError.message : String(tiersError);
+    reasons.push(`Base risk-tiers is invalid (${message.split('\n')[0]}). Fail closed as high.`);
+  }
+  const completeness = assessFileList(listed.entryCount, changedFiles, listed.capped);
+  if (!completeness.complete) reasons.push(completeness.reason);
+  const unsafe = listed.files.filter(isUnsafeChangedPath);
+  if (unsafe.length > 0) {
+    reasons.push(
+      `Changed path contains '\\' or a '..' segment (${unsafe[0]}). Paths are matched literally and are not normalized. Fail closed as high.`,
+    );
+  }
+  return reasons;
+}
+
+async function runPullRequest(rules, env, tiersError = null) {
   if (!env.GITHUB_EVENT_PATH) throw new Error('GITHUB_EVENT_PATH is not set');
   const event = JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const pullRequest = pullRequestFromEvent(event);
   const github = createGitHub(env);
-  const listed = await github.listPullFiles(pullRequest.number);
-  const completeness = assessFileList(listed.entryCount, pullRequest.changedFiles);
+  let listed = { files: [], entryCount: 0, capped: false };
+  try {
+    listed = await github.listPullFiles(pullRequest.number);
+  } catch (error) {
+    if (!tiersError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`Could not list changed files. The tier is still high. ${message.split('\n')[0]}`);
+  }
+  const reasons = failClosedReasons(listed, pullRequest.changedFiles, tiersError);
   let tier;
-  if (!completeness.complete) {
-    console.log(completeness.reason);
+  if (reasons.length > 0) {
+    for (const reason of reasons) console.log(reason);
     for (const file of listed.files) console.log(`high\t${file}`);
     console.log('Computed risk tier: high');
     console.log(`Label: ${riskLabel('high')}`);
@@ -523,7 +574,14 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     console.log('Usage: node scripts/risk-tier.mjs --paths <a,b> [--body <text>]');
     return;
   }
-  const rules = loadRiskTiers();
+  let rules;
+  try {
+    rules = loadRiskTiers();
+  } catch (error) {
+    if (args.paths !== null) throw error;
+    await runPullRequest(null, env, error);
+    return;
+  }
   if (args.paths !== null) {
     await runLocal(args, rules);
     return;

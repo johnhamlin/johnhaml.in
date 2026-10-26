@@ -13,10 +13,12 @@ import {
   applyLabelPlan,
   applyRiskLabel,
   assessBody,
+  FILE_LIST_CAP,
   assessFileList,
   checkedTiers,
   globSource,
   isLabelWriteDenied,
+  isUnsafeChangedPath,
   loadRiskTiers,
   filesFromPullEntries,
   matchGlob,
@@ -429,6 +431,14 @@ test('the workflow pins actions and uses least privilege', () => {
   assert.match(label, /cancel-in-progress:\s*false/);
   assert.doesNotMatch(label, /cancel-in-progress:\s*true/);
   assert.match(tests, /cancel-in-progress:\s*true/);
+  assert.match(label, /runs-on: ubuntu-slim/);
+  assert.match(tests, /runs-on: ubuntu-latest/);
+  assert.doesNotMatch(label, /ubuntu-latest/);
+  assert.match(label, /node --version/);
+  assert.match(label, /3000-file page cap/);
+  assert.match(label, /not normalized/);
+  assert.match(label, /Base risk-tiers is invalid/);
+  assert.match(label, /\(\?:agents\|claude\|review\)\\.md\$\/i/);
   assert.doesNotMatch(top, /cancel-in-progress/);
   assert.doesNotMatch(workflow, /git fetch|git diff|git show|git cat-file/);
   const script = labelStepScript(workflow);
@@ -533,7 +543,7 @@ function bootstrapSource(workflow) {
   return `${lines.map((line) => line.slice(indent)).join('\n')}\n`;
 }
 
-function runBootstrap(body, onRequest, changedFiles = 1) {
+function runBootstrap(body, onRequest, changedFiles = 1, prepare) {
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
@@ -576,7 +586,9 @@ function runBootstrap(body, onRequest, changedFiles = 1) {
         }),
       );
       fs.writeFileSync(scriptPath, bootstrapSource(workflow));
+      if (prepare) prepare(dir);
       const child = spawn(process.execPath, [scriptPath], {
+        cwd: dir,
         env: {
           PATH: process.env.PATH ?? '',
           GITHUB_TOKEN: 'test-token',
@@ -1167,4 +1179,216 @@ test('a 403 after a partial label write does not leave two risk labels', async (
   assert.doesNotMatch(`${boot.stdout}\n${boot.stderr}`, /PR body check passed|Continuing with the body check/);
   assert.equal(bootDeletes, 2);
   assert.deepEqual(bootNames, ['risk:high']);
+});
+
+test('changed paths are matched literally', () => {
+  const traversal = 'src/content/blog/../blog/post.mdx';
+  const windowsPath = 'src\\content\\blog\\post.mdx';
+  assert.equal(isUnsafeChangedPath(traversal), true);
+  assert.equal(isUnsafeChangedPath(windowsPath), true);
+  assert.equal(isUnsafeChangedPath('src/content/blog/my..post.mdx'), false);
+  assert.equal(tierForPath(traversal, rules), 'high');
+  assert.equal(tierForPath(windowsPath, rules), 'high');
+  assert.equal(tierForPath('src/content/blog/my..post.mdx', rules), 'low');
+  assert.equal(tierForPath('src/content/blog/post.mdx', rules), 'low');
+  assert.equal(tierForPath('./src/content/blog/post.mdx', rules), 'medium');
+  assert.equal(tierForPath('agents.md', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/Agents.md', rules), 'high');
+  assert.equal(tierForPath('docs/review.md', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/CLAUDE.MD', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/not-AGENTS.md', rules), 'low');
+  assert.equal(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).complete, false);
+  assert.match(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).reason, /3000-file page cap/);
+  assert.doesNotMatch(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).reason, /fewer than/);
+  assert.equal(assessFileList(FILE_LIST_CAP - 1, FILE_LIST_CAP - 1).complete, true);
+});
+
+test('an unsafe path, a full page cap, or invalid tiers still label high', async () => {
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
+  const script = labelStepScript(workflow);
+  const traversal = 'src/content/blog/../blog/post.mdx';
+  const windowsPath = 'src\\content\\blog\\post.mdx';
+
+  async function withRepo(tiersBody, run) {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-literal-'));
+    const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-runner-'));
+    try {
+      fs.mkdirSync(path.join(repo, 'scripts'));
+      fs.copyFileSync(
+        fileURLToPath(new URL('./risk-tier.mjs', import.meta.url)),
+        path.join(repo, 'scripts/risk-tier.mjs'),
+      );
+      fs.writeFileSync(path.join(repo, 'risk-tiers'), tiersBody);
+      return await run(repo, runnerTemp);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+      fs.rmSync(runnerTemp, { recursive: true, force: true });
+    }
+  }
+
+  const unsafeLabels = [];
+  const unsafe = await withRepo(fs.readFileSync(path.join(root, 'risk-tiers'), 'utf8'), (repo, runnerTemp) =>
+    runLabelStep({
+      script,
+      repo,
+      runnerTemp,
+      changedFiles: 2,
+      body: '- [x] high — config\n',
+      onRequest: labelApi(unsafeLabels, () => ({
+        status: 200,
+        body: JSON.stringify([
+          { filename: traversal },
+          { filename: windowsPath },
+        ]),
+      })),
+    }),
+  );
+  assert.equal(unsafe.status, 0, `${unsafe.stderr}\n${unsafe.stdout}`);
+  assert.match(unsafe.stdout, /not normalized/);
+  assert.match(unsafe.stdout, /Fail closed as high/);
+  assert.match(unsafe.stdout, /high\tsrc\/content\/blog\/\.\.\/blog\/post\.mdx/);
+  assert.match(unsafe.stdout, /high\tsrc\\content\\blog\\post\.mdx/);
+  assert.doesNotMatch(unsafe.stdout, /^low\t/m);
+  assert.match(unsafe.stdout, /Label: risk:high/);
+  assert.deepEqual(unsafeLabels, ['risk:high']);
+
+  const cappedLabels = [];
+  const many = Array.from({ length: FILE_LIST_CAP }, (_, index) => ({
+    filename: `src/content/blog/p${index}.mdx`,
+  }));
+  const capped = await withRepo(fs.readFileSync(path.join(root, 'risk-tiers'), 'utf8'), (repo, runnerTemp) =>
+    runLabelStep({
+      script,
+      repo,
+      runnerTemp,
+      changedFiles: FILE_LIST_CAP,
+      body: '- [x] high — config\n',
+      onRequest: labelApi(cappedLabels, () => ({ status: 200, body: JSON.stringify(many) })),
+    }),
+  );
+  assert.equal(capped.status, 0, `${capped.stderr}\n${capped.stdout}`);
+  assert.match(capped.stdout, /3000-file page cap \(3000 files\)/);
+  assert.doesNotMatch(capped.stdout, /fewer than/);
+  assert.doesNotMatch(capped.stdout, /^low\t/m);
+  assert.match(capped.stdout, /Label: risk:high/);
+  assert.deepEqual(cappedLabels, ['risk:high']);
+
+  const invalidLabels = [];
+  const invalid = await withRepo('nope\n', (repo, runnerTemp) =>
+    runLabelStep({
+      script,
+      repo,
+      runnerTemp,
+      changedFiles: 1,
+      body: '- [x] low — posts\n',
+      onRequest: labelApi(invalidLabels, () => ({
+        status: 200,
+        body: JSON.stringify([{ filename: 'src/content/blog/post.mdx' }]),
+      })),
+    }),
+  );
+  assert.equal(invalid.status, 1, `${invalid.stderr}\n${invalid.stdout}`);
+  assert.match(invalid.stdout, /Base risk-tiers is invalid \(risk-tiers:1: expected "<tier> <glob>"\)/);
+  assert.match(invalid.stdout, /Label: risk:high/);
+  assert.match(invalid.stderr, /checked tier low is lower than computed tier high/);
+  assert.doesNotMatch(`${invalid.stdout}\n${invalid.stderr}`, /Continuing with the body check/);
+  assert.doesNotMatch(invalid.stdout, /^low\t/m);
+  assert.deepEqual(invalidLabels, ['risk:high']);
+
+  const odd = await runBootstrap(
+    '- [x] high — config\n',
+    (request) => {
+      if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+        return { status: 200, body: JSON.stringify([{ filename: 'src/content/blog/agents.md' }]) };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+        return { status: 200, body: '{"name":"risk:high"}' };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+    },
+  );
+  assert.equal(odd.status, 0, `${odd.stderr}\n${odd.stdout}`);
+  assert.match(odd.stdout, /Matched src\/content\/blog\/agents\.md as an agent doc with a case-insensitive name/);
+  assert.match(odd.stdout, /high\tsrc\/content\/blog\/agents\.md/);
+  assert.match(odd.stdout, /Label: risk:high/);
+
+  const bootUnsafe = await runBootstrap(
+    '- [x] high — config\n',
+    (request) => {
+      if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+        return { status: 200, body: JSON.stringify([{ filename: traversal }]) };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+        return { status: 200, body: '{"name":"risk:high"}' };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+    },
+  );
+  assert.equal(bootUnsafe.status, 0, `${bootUnsafe.stderr}\n${bootUnsafe.stdout}`);
+  assert.match(bootUnsafe.stdout, /not normalized/);
+  assert.match(bootUnsafe.stdout, /high\tsrc\/content\/blog\/\.\.\/blog\/post\.mdx/);
+  assert.doesNotMatch(bootUnsafe.stdout, /high\tsrc\/content\/blog\/post\.mdx/);
+
+  const bootInvalid = await runBootstrap(
+    '- [x] low — posts\n',
+    (request) => {
+      if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+        return { status: 200, body: JSON.stringify([{ filename: 'README.md' }]) };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+        return { status: 200, body: '{"name":"risk:high"}' };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+    },
+    1,
+    (dir) => {
+      fs.writeFileSync(path.join(dir, 'risk-tiers'), 'nope\n');
+    },
+  );
+  assert.equal(bootInvalid.status, 1, `${bootInvalid.stderr}\n${bootInvalid.stdout}`);
+  assert.match(bootInvalid.stdout, /Base risk-tiers is invalid \(risk-tiers:1: expected "<tier> <glob>"\)/);
+  assert.match(bootInvalid.stdout, /Label: risk:high/);
+  assert.match(bootInvalid.stderr, /checked tier low is lower than computed tier high/);
+
+  const bootCap = await runBootstrap(
+    '- [x] high — config\n',
+    (request) => {
+      if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+        return { status: 200, body: JSON.stringify(many) };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+        return { status: 200, body: '{"name":"risk:high"}' };
+      }
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+    },
+    FILE_LIST_CAP,
+  );
+  assert.equal(bootCap.status, 0, `${bootCap.stderr}\n${bootCap.stdout}`);
+  assert.match(bootCap.stdout, /3000-file page cap \(3000 files\)/);
+  assert.match(bootCap.stdout, /Label: risk:high/);
+  assert.doesNotMatch(bootCap.stdout, /^low\t/m);
 });
