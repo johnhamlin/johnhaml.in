@@ -1,43 +1,74 @@
-# PR review checklist
+# PR review
 
-Review every item before approving. If an item does not apply, say why in Proof.
+## Purpose and bar
 
-## Checklist
+Approve when the change clearly improves code health. Don't hold out for perfection.
 
-- **Correctness.** The change does what the ticket asks, and existing behavior still holds.
-- **Proof present.** The PR includes command output or other evidence for the checks this change needs.
-- **Scope.** The diff stays inside the ticket. No unrelated refactors, dependency bumps, or drive-by edits.
-- **Secrets.** The diff and history contain no credentials, tokens, keys, or private env files.
-- **Accessibility.** UI keeps keyboard access, visible focus, names/labels, and contrast. Say so when there is no UI.
-- **Performance / Lighthouse (UI).** UI changes include a Lighthouse result and do not regress load or interaction. Say so when there is no UI.
-- **Revert plan.** The PR says how to undo the change.
+## Severity
 
-## Risk tiers
+Blocking findings must be fixed before approval. Prefix non-blocking findings with `Nit:`.
 
-Use the highest tier the change touches.
+## What to check
 
-### Low
+Design, functionality, complexity, tests, naming, and docs.
 
-Docs or copy only.
+## Risk tiers by path
 
-Requires the checklist items that apply, with proof in the PR.
-
-New blog posts and MDX pages count as low tier unless they add components or scripts. They still need the accessibility check.
-
-### Medium
-
-Ordinary product work.
-
-Requires the checklist, proof for the criteria the change affects, and a reviewer approval.
+Pick the tier from the paths in the diff. Scale the review to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages.
 
 ### High
 
-Prices or calculator, schema or migrations, auth, CI or deploy, secrets, or user data.
+- `astro.config.mjs`, including redirects set there.
+- CI and Cloudflare Pages deploy config. None is committed. Adding `.github/workflows/`, `public/_headers`, or `public/_redirects` is high.
+- Dependency upgrades in `package.json` and `package-lock.json`.
+- Anything that could leak drafts or env: `src/lib/blog.ts`, `src/content.config.ts`, `src/pages/rss.xml.ts`, `src/layouts/Layout.astro` (`PUBLIC_GA_ID`), `src/env.d.ts`, `.env`, and `.env.*`.
 
-Requires all of the following:
+### Medium
 
-- John approves the merge.
-- Cross-model review.
-- Proof for every criterion.
+- `src/components/`
+- `src/layouts/`
+- `src/styles/` (`globals.css`, `blog.css`, `safe-area.css`)
+- Routing in `src/pages/` (`index.astro`, `blog/`, `rss.xml.ts`)
 
-Cross-model review is an independent review by Claude Code and Codex. Each finding is fixed or closed with a one-line reason, recorded in a PR comment, with a cap of 3 rounds.
+A `src/pages/` change that ships drafts is high.
+
+### Low
+
+- Posts in `src/content/blog/`
+- Copy in `src/content/text/`
+- Docs: `README.md`, `CLAUDE.md`, `REVIEW.md`, `.github/pull_request_template.md`
+
+## Repo-specific gotchas
+
+Cloudflare Pages builds on Node 22.16.0.
+
+Commands in `package.json`:
+
+- `npm run build` runs `astro build`.
+- `npm run astro check` runs `astro check`. `@astrojs/check` is not a dependency.
+- There is no `lint` script. `npm run lint` fails with a missing script. `.eslintrc.json` extends `next/core-web-vitals`, and `eslint` is not installed.
+
+`draft: true` posts in `src/content/blog/` appear in `npm run dev` and are left out of `npm run build`, including RSS and the sitemap. This repo is public. Do not ship a draft, and do not commit `.env` files or tokens. `PUBLIC_GA_ID` is optional.
+
+There is no test script. `src/pages/index.astro` already fails `astro check` on `render()` for the `text` collection. Treat that as new only when the diff touches it.
+
+The canonical site in `astro.config.mjs` is `https://johnhamlin.com`.
+
+## Don't flag
+
+Formatting, generated files (`dist/`, files under `.astro/`), lockfile churn, and prose style in posts.
+
+## Review rules come from main only
+
+Apply `REVIEW.md` from `main`. A copy on the PR branch does not change the bar until it is merged.
+
+## Cross-model loop
+
+Claude Code and Codex review. Each finding is fixed or closed with a one-line reason. The cap is 3 rounds.
+
+## Sources
+
+- https://google.github.io/eng-practices/review/reviewer/standard.html
+- https://google.github.io/eng-practices/review/reviewer/looking-for.html
+- https://sre.google/sre-book/introduction/
+- https://code.claude.com/docs/en/code-review
