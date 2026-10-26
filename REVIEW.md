@@ -22,7 +22,7 @@ Design, functionality, complexity, tests, naming, and docs.
 
 ## Risk tiers by path
 
-The risk tier is set by the change, not the author. Scale it to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages. Any CI workflow file (`.github/workflows/`) is always high.
+The risk tier is set by the change, not the author. Scale it to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages.
 
 ### High
 
@@ -57,12 +57,12 @@ Cloudflare Pages builds on Node 22.16.0.
 Commands in `package.json`:
 
 - `npm run build` runs `astro build`.
-- `npm run astro check` runs `astro check`. `@astrojs/check` is not a dependency.
-- There is no `lint` script. `npm run lint` fails with a missing script. `.eslintrc.json` extends `next/core-web-vitals`, and `eslint` is not installed.
+- Until #5 lands, `npm run astro check` runs `astro check`, and `@astrojs/check` is not a dependency. #5 adds `npm run check`.
+- Until #5 lands, there is no `lint` script, `.eslintrc.json` extends `next/core-web-vitals`, and `eslint` is not installed. #5 adds `npm run lint` and removes `.eslintrc.json`.
 
 `draft: true` posts in `src/content/blog/` appear in `npm run dev` and are left out of `npm run build`, including RSS and the sitemap. This repo is public. Do not ship a draft, and do not commit `.env` files or tokens. `PUBLIC_GA_ID` is optional.
 
-There is no test script. `src/pages/index.astro` already fails `astro check` on `render()` for the `text` collection. Treat that as new only when the diff touches it.
+There is no test script. Until #5 lands, `src/pages/index.astro` fails `astro check` on `render()` for the `text` collection. Treat that as new only when the diff touches it. #5 adds `npm run check` and `npm run lint`.
 
 The canonical site in `astro.config.mjs` is `https://johnhamlin.com`.
 
@@ -70,7 +70,7 @@ The canonical site in `astro.config.mjs` is `https://johnhamlin.com`.
 
 Formatting, and prose style in posts.
 
-Skip these paths: lockfiles (`package-lock.json`), generated files, `dist/`, and `.astro/`.
+Skip formatting noise in lockfiles (`package-lock.json`). Any dependency change in `package-lock.json` stays High and gets reviewed. Also skip generated files, `dist/`, and `.astro/`.
 
 ## Review rules come from main only
 
