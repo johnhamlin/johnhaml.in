@@ -12,9 +12,9 @@
 
 - [ ] low — posts, copy, and docs
 - [ ] medium — components, layouts, styles, and routing (`src/pages`)
-- [ ] high — `astro.config.mjs`, CI and Cloudflare Pages deploy config, redirects and headers, dependency upgrades, or a draft or env leak
+- [ ] high — `astro.config.mjs`, CI and Cloudflare Pages deploy config, redirects and headers, dependency upgrades, a draft or env leak, or agent instructions (`REVIEW.md`, `CLAUDE.md`, `AGENTS.md`, `.cursor/**`, `.github/pull_request_template.md`)
 
-Which high-risk trigger applies? (for example CI and Cloudflare Pages deploy config, or a draft or env leak)
+Which high-risk trigger applies? (for example CI and Cloudflare Pages deploy config, a draft or env leak, or agent instructions)
 
 ## Review
 

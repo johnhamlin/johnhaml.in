@@ -22,7 +22,7 @@ Design, functionality, complexity, tests, naming, and docs.
 
 ## Risk tiers by path
 
-The risk tier is set by the change, not the author. Scale it to blast radius and how easy a rollback is. Content and docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages.
+The risk tier is set by the change, not the author. Scale it to blast radius and how easy a rollback is. Posts and ordinary docs revert with one commit. Config and dependencies ship to every page on Cloudflare Pages. Agent instruction files are high because a wrong line steers every future agent and review.
 
 ### High
 
@@ -30,6 +30,7 @@ The risk tier is set by the change, not the author. Scale it to blast radius and
 - CI and Cloudflare Pages deploy config. None is committed. Any file under `.github/workflows/` is always high. Adding `public/_headers` or `public/_redirects` is high.
 - Dependency upgrades in `package.json` and `package-lock.json`.
 - Anything that could leak drafts or env: `src/lib/blog.ts`, `src/content.config.ts`, `src/pages/rss.xml.ts`, `src/layouts/Layout.astro` (`PUBLIC_GA_ID`), `src/env.d.ts`, `.env`, and `.env.*`.
+- Agent and review instructions: `REVIEW.md`, `CLAUDE.md`, `AGENTS.md` if it is added, `.cursor/**`, and `.github/pull_request_template.md`.
 
 ### Medium
 
@@ -44,7 +45,7 @@ A `src/pages/` change that ships drafts is high.
 
 - Posts in `src/content/blog/`
 - Copy in `src/content/text/`
-- Docs: `README.md`, `CLAUDE.md`, `REVIEW.md`, `.github/pull_request_template.md`
+- Docs that do not steer agents, such as `README.md`
 
 ## What failure looks like here
 
