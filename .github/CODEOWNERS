@@ -1,0 +1,27 @@
+# High-risk paths. @johnhamlin owns each one.
+# Last matching pattern wins. Low and medium paths are not listed.
+
+/astro.config.mjs @johnhamlin
+/.github/workflows/ @johnhamlin
+/public/_headers @johnhamlin
+/public/_redirects @johnhamlin
+/package.json @johnhamlin
+/package-lock.json @johnhamlin
+/src/lib/blog.ts @johnhamlin
+/src/content.config.ts @johnhamlin
+/src/pages/rss.xml.ts @johnhamlin
+/src/layouts/Layout.astro @johnhamlin
+/src/env.d.ts @johnhamlin
+/.env @johnhamlin
+/.env.* @johnhamlin
+.env @johnhamlin
+.env.* @johnhamlin
+/REVIEW.md @johnhamlin
+/CLAUDE.md @johnhamlin
+/AGENTS.md @johnhamlin
+/.cursor/ @johnhamlin
+/.github/pull_request_template.md @johnhamlin
+/.claude/ @johnhamlin
+/.github/ @johnhamlin
+/risk-tiers @johnhamlin
+/scripts/risk-tier.mjs @johnhamlin
