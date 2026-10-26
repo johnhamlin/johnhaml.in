@@ -196,13 +196,6 @@ jobs:
             if (unsafe.length > 0) {
               console.log(`Changed path contains '\\' or a '..' segment (${unsafe[0]}). Paths are matched literally and are not normalized. Fail closed as high.`);
             }
-            const oddAgent = unique.filter((file) => {
-              const segment = file.split('/').pop() ?? '';
-              return /^(?:agents|claude|review)\.md$/i.test(segment) && !/^(?:AGENTS|CLAUDE|REVIEW)\.md$/.test(segment);
-            });
-            if (oddAgent.length > 0) {
-              console.log(`Matched ${oddAgent[0]} as an agent doc with a case-insensitive name.`);
-            }
             for (const file of unique) console.log(`high\t${file}`);
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -231,27 +224,46 @@ jobs:
             );
           }
 
-          async function recoverPartial() {
+          async function settleDenied() {
             const now = await issueNames();
-            const staleLeft = riskNames(now.names).filter((name) => name !== 'risk:high');
-            for (const name of staleLeft) {
-              const removed = await deleteLabel(name);
-              if (removed.status === 403) break;
+            if (now.denied) {
+              console.error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
+              return 'partial';
             }
-            let left = riskNames((await issueNames()).names);
-            if (left.length > 1) {
-              for (const name of left) {
+            const dropStale = async (names) => {
+              for (const name of names) {
+                if (name === 'risk:high') continue;
                 const removed = await deleteLabel(name);
-                if (removed.status === 403) break;
+                if (removed.status === 403) return false;
               }
-              left = riskNames((await issueNames()).names);
+              return true;
+            };
+            let left = riskNames(now.names);
+            await dropStale(left);
+            const again = await issueNames();
+            if (again.denied) {
+              console.error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
+              return 'partial';
+            }
+            left = riskNames(again.names);
+            if (left.length > 1) {
+              await dropStale(left);
+              const finalRead = await issueNames();
+              if (finalRead.denied) {
+                console.error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
+                return 'partial';
+              }
+              left = riskNames(finalRead.names);
             }
             if (left.length > 1) {
               console.error(`Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`);
-            } else {
-              console.error('Risk label update was denied (403) after a partial write. Fail closed.');
+              return 'partial';
             }
-            return 'partial';
+            if (left.length === 1 && left[0] !== 'risk:high') {
+              console.error(`Risk label update was denied (403) and left ${left[0]}, lower than computed tier high. Fail closed.`);
+              return 'partial';
+            }
+            return left.length === 1 ? true : false;
           }
 
           async function syncLabel() {
@@ -271,17 +283,14 @@ jobs:
             const stale = listed.names.filter((name) => name === 'risk:low' || name === 'risk:medium');
             if (!listed.names.includes('risk:high')) {
               const added = await request('POST', `${repo}/issues/${number}/labels`, { labels: ['risk:high'] });
-              if (added.status === 403) {
-                if (riskNames(listed.names).length > 1) return recoverPartial();
-                return false;
-              }
+              if (added.status === 403) return settleDenied();
               console.log('Added label: risk:high');
             } else {
               console.log('Added label: (none)');
             }
             for (const name of stale) {
               const removed = await deleteLabel(name);
-              if (removed.status === 403) return recoverPartial();
+              if (removed.status === 403) return settleDenied();
             }
             console.log(`Removed stale labels: ${stale.join(', ') || '(none)'}`);
             console.log('Risk labels now: risk:high');

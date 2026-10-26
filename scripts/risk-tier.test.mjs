@@ -427,7 +427,9 @@ test('the workflow pins actions and uses least privilege', () => {
   assert.match(label, /END_BOOTSTRAP/);
   assert.match(label, /changed_files/);
   assert.match(label, /stops at 3000/);
-  assert.match(label, /partial write/);
+  assert.match(label, /could not be re-read/);
+  assert.match(label, /lower than computed tier/);
+  assert.match(label, /name === 'risk:high'\) continue/);
   assert.match(label, /cancel-in-progress:\s*false/);
   assert.doesNotMatch(label, /cancel-in-progress:\s*true/);
   assert.match(tests, /cancel-in-progress:\s*true/);
@@ -438,7 +440,6 @@ test('the workflow pins actions and uses least privilege', () => {
   assert.match(label, /3000-file page cap/);
   assert.match(label, /not normalized/);
   assert.match(label, /Base risk-tiers is invalid/);
-  assert.match(label, /\(\?:agents\|claude\|review\)\\.md\$\/i/);
   assert.doesNotMatch(top, /cancel-in-progress/);
   assert.doesNotMatch(workflow, /git fetch|git diff|git show|git cat-file/);
   const script = labelStepScript(workflow);
@@ -482,6 +483,14 @@ test('REVIEW.md and the PR template make the risk label the source of truth', ()
   assert.match(review, /CODEOWNERS/);
   assert.match(review, /@johnhamlin/);
   assert.match(review, /branch protection that requires code-owner review/);
+  assert.match(review, /lowercases each changed path once/);
+  assert.match(review, /CODEOWNERS` patterns are case-sensitive/);
+  assert.match(review, /3000-file cap/);
+  assert.match(review, /backslash or a `\.\.` segment/);
+  assert.match(review, /risk-tiers` is invalid/);
+  assert.match(review, /lower than the computed tier/);
+  assert.match(review, /more than one risk label remains/);
+  assert.match(review, /leaves no risk label/);
   assert.match(template, /The risk:\* label is the source of truth/);
   assert.match(template, /- \[ \] low —/);
   assert.match(template, /- \[ \] medium —/);
@@ -1027,38 +1036,36 @@ test('a 403 after a partial label write does not leave two risk labels', async (
   const cleaned = ['risk:low'];
   let cleanedRemoves = 0;
   const warnings = [];
-  await assert.rejects(
-    () =>
-      reportTierResult({
+  const cleanedResult = await reportTierResult({
+    tier: 'high',
+    body: '- [x] high — config',
+    warn: (message) => warnings.push(message),
+    applyLabels: () =>
+      applyRiskLabel({
         tier: 'high',
-        body: '- [x] high — config',
-        warn: (message) => warnings.push(message),
-        applyLabels: () =>
-          applyRiskLabel({
-            tier: 'high',
-            listLabels: async () => [...cleaned],
-            addLabels: async (labels) => {
-              for (const label of labels) {
-                if (!cleaned.includes(label)) cleaned.push(label);
-              }
-            },
-            removeLabel: async (label) => {
-              cleanedRemoves += 1;
-              if (cleanedRemoves === 1) {
-                throw new Error('GitHub API 403 for DELETE /repos/o/r/issues/6/labels/risk:low: {}');
-              }
-              const index = cleaned.indexOf(label);
-              if (index >= 0) cleaned.splice(index, 1);
-            },
-          }),
+        listLabels: async () => [...cleaned],
+        addLabels: async (labels) => {
+          for (const label of labels) {
+            if (!cleaned.includes(label)) cleaned.push(label);
+          }
+        },
+        removeLabel: async (label) => {
+          cleanedRemoves += 1;
+          if (cleanedRemoves === 1) {
+            throw new Error('GitHub API 403 for DELETE /repos/o/r/issues/6/labels/risk:low: {}');
+          }
+          const index = cleaned.indexOf(label);
+          if (index >= 0) cleaned.splice(index, 1);
+        },
       }),
-    /Risk label update was denied \(403\) after a partial write/,
-  );
+  });
+  assert.equal(cleanedResult.ok, true);
   assert.deepEqual(warnings, []);
   assert.deepEqual(cleaned, ['risk:high']);
   assert.equal(cleanedRemoves, 2);
 
   const stuck = ['risk:low'];
+  const stuckRemoved = [];
   const stuckWarnings = [];
   await assert.rejects(
     () =>
@@ -1075,7 +1082,8 @@ test('a 403 after a partial label write does not leave two risk labels', async (
                 if (!stuck.includes(label)) stuck.push(label);
               }
             },
-            removeLabel: async () => {
+            removeLabel: async (label) => {
+              stuckRemoved.push(label);
               throw new Error('GitHub API 403 for DELETE /repos/o/r/issues/6/labels/risk:low: {}');
             },
           }),
@@ -1084,11 +1092,88 @@ test('a 403 after a partial label write does not leave two risk labels', async (
   );
   assert.deepEqual(stuckWarnings, []);
   assert.deepEqual(stuck, ['risk:low', 'risk:high']);
+  assert.equal(stuckRemoved.includes('risk:high'), false);
+
+  const stale = ['risk:low'];
+  const staleRemoved = [];
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: () => {
+          throw new Error('a stale lower label must fail the check');
+        },
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => [...stale],
+            addLabels: async () => {
+              throw new Error('GitHub API 403 for POST /repos/o/r/issues/6/labels: {}');
+            },
+            removeLabel: async (label) => {
+              staleRemoved.push(label);
+              throw new Error('GitHub API 403 for DELETE /repos/o/r/issues/6/labels/risk:low: {}');
+            },
+          }),
+      }),
+    /left risk:low, lower than computed tier high/,
+  );
+  assert.deepEqual(stale, ['risk:low']);
+  assert.deepEqual(staleRemoved, ['risk:low']);
+
+  const unreadWarnings = [];
+  let unreadLists = 0;
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: (message) => unreadWarnings.push(message),
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => {
+              unreadLists += 1;
+              if (unreadLists === 1) return [];
+              throw new Error('GitHub API 403 for GET /repos/o/r/issues/6/labels: {}');
+            },
+            addLabels: async () => {
+              throw new Error('GitHub API 403 for POST /repos/o/r/issues/6/labels: {}');
+            },
+            removeLabel: async () => {
+              throw new Error('should not remove');
+            },
+          }),
+      }),
+    /could not be re-read/,
+  );
+  assert.deepEqual(unreadWarnings, []);
+
+  const emptyWarnings = [];
+  const emptyResult = await reportTierResult({
+    tier: 'high',
+    body: '- [x] high — config',
+    warn: (message) => emptyWarnings.push(message),
+    applyLabels: () =>
+      applyRiskLabel({
+        tier: 'high',
+        listLabels: async () => [],
+        addLabels: async () => {
+          throw new Error('GitHub API 403 for POST /repos/o/r/issues/6/labels: {}');
+        },
+        removeLabel: async () => {
+          throw new Error('should not remove');
+        },
+      }),
+  });
+  assert.equal(emptyResult.ok, true);
+  assert.match(emptyWarnings.join('\n'), /Continuing with the body check/);
 
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-partial-'));
   const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-runner-'));
   const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
-  const names = ['risk:medium'];
+  const names = ['risk:low'];
   let deletes = 0;
   try {
     fs.mkdirSync(path.join(repo, 'scripts'));
@@ -1099,46 +1184,34 @@ test('a 403 after a partial label write does not leave two risk labels', async (
       repo,
       runnerTemp,
       changedFiles: 1,
-      body: '- [x] low — posts\n',
+      body: '- [x] high — config\n',
       onRequest: (request) => {
         const { method, urlPath } = request;
         if (method === 'GET' && urlPath.startsWith('/repos/o/r/pulls/6/files')) {
-          return {
-            status: 200,
-            body: JSON.stringify([{ filename: 'src/content/blog/post.mdx' }]),
-          };
+          return { status: 200, body: JSON.stringify([{ filename: 'package.json' }]) };
         }
-        if (method === 'GET' && urlPath === '/repos/o/r/labels/risk:low') {
-          return { status: 404, body: '' };
-        }
-        if (method === 'POST' && urlPath === '/repos/o/r/labels') {
-          return { status: 201, body: '{"name":"risk:low"}' };
+        if (method === 'GET' && urlPath === '/repos/o/r/labels/risk:high') {
+          return { status: 200, body: '{"name":"risk:high"}' };
         }
         if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
           return { status: 200, body: JSON.stringify(names.map((name) => ({ name }))) };
         }
         if (method === 'POST' && urlPath === '/repos/o/r/issues/6/labels') {
-          if (!names.includes('risk:low')) names.push('risk:low');
-          return { status: 200, body: JSON.stringify(names.map((name) => ({ name }))) };
+          return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
         }
-        if (method === 'DELETE' && urlPath === '/repos/o/r/issues/6/labels/risk:medium') {
+        if (method === 'DELETE' && urlPath === '/repos/o/r/issues/6/labels/risk:low') {
           deletes += 1;
-          if (deletes === 1) {
-            return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
-          }
-          const index = names.indexOf('risk:medium');
-          if (index >= 0) names.splice(index, 1);
-          return { status: 204, body: '' };
+          return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
         }
         return { status: 500, body: `unexpected ${method} ${urlPath}` };
       },
     });
     assert.equal(labeled.status, 1, `${labeled.stderr}\n${labeled.stdout}`);
-    assert.match(labeled.stderr, /after a partial write/);
-    assert.match(labeled.stdout, /low\tsrc\/content\/blog\/post\.mdx/);
-    assert.match(labeled.stdout, /Label: risk:low/);
+    assert.match(labeled.stderr, /left risk:low, lower than computed tier high/);
+    assert.match(labeled.stdout, /high\tpackage\.json/);
+    assert.match(labeled.stdout, /Label: risk:high/);
     assert.doesNotMatch(`${labeled.stdout}\n${labeled.stderr}`, /PR body check passed|Continuing with the body check/);
-    assert.equal(deletes, 2);
+    assert.ok(deletes >= 1);
     assert.deepEqual(names, ['risk:low']);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
@@ -1159,26 +1232,23 @@ test('a 403 after a partial label write does not leave two risk labels', async (
       return { status: 200, body: JSON.stringify(bootNames.map((name) => ({ name }))) };
     }
     if (method === 'POST' && urlPath === '/repos/o/r/issues/6/labels') {
-      if (!bootNames.includes('risk:high')) bootNames.push('risk:high');
-      return { status: 200, body: '[{"name":"risk:high"}]' };
+      return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
     }
     if (method === 'DELETE' && urlPath === '/repos/o/r/issues/6/labels/risk:low') {
       bootDeletes += 1;
-      if (bootDeletes === 1) {
-        return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
-      }
-      const index = bootNames.indexOf('risk:low');
-      if (index >= 0) bootNames.splice(index, 1);
-      return { status: 204, body: '' };
+      return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
+    }
+    if (method === 'DELETE' && urlPath === '/repos/o/r/issues/6/labels/risk:high') {
+      return { status: 500, body: 'must not delete the desired label' };
     }
     return { status: 500, body: `unexpected ${method} ${urlPath}` };
   });
   assert.equal(boot.status, 1, `${boot.stderr}\n${boot.stdout}`);
-  assert.match(boot.stderr, /after a partial write/);
+  assert.match(boot.stderr, /left risk:low, lower than computed tier high/);
   assert.match(boot.stdout, /Label: risk:high/);
   assert.doesNotMatch(`${boot.stdout}\n${boot.stderr}`, /PR body check passed|Continuing with the body check/);
-  assert.equal(bootDeletes, 2);
-  assert.deepEqual(bootNames, ['risk:high']);
+  assert.ok(bootDeletes >= 1);
+  assert.deepEqual(bootNames, ['risk:low']);
 });
 
 test('changed paths are matched literally', () => {
@@ -1197,6 +1267,19 @@ test('changed paths are matched literally', () => {
   assert.equal(tierForPath('docs/review.md', rules), 'high');
   assert.equal(tierForPath('src/content/blog/CLAUDE.MD', rules), 'high');
   assert.equal(tierForPath('src/content/blog/not-AGENTS.md', rules), 'low');
+  assert.equal(tierForPath('.Claude/x', rules), 'high');
+  assert.equal(tierForPath('.claude/x', rules), tierForPath('.Claude/x', rules));
+  assert.equal(tierForPath('.CURSOR/x', rules), 'high');
+  assert.equal(tierForPath('.cursor/x', rules), tierForPath('.CURSOR/x', rules));
+  assert.equal(tierForPath('.GitHub/workflows/x.yml', rules), 'high');
+  assert.equal(tierForPath('.github/workflows/x.yml', rules), tierForPath('.GitHub/workflows/x.yml', rules));
+  assert.equal(tierForPath('Package.json', rules), 'high');
+  assert.equal(tierForPath('package.json', rules), tierForPath('Package.json', rules));
+  assert.equal(
+    tierForPath('SRC/COMPONENTS/Header.tsx', rules),
+    tierForPath('src/components/Header.tsx', rules),
+  );
+  assert.equal(tierForPath('SRC/CONTENT/BLOG/post.mdx', rules), 'low');
   assert.equal(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).complete, false);
   assert.match(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).reason, /3000-file page cap/);
   assert.doesNotMatch(assessFileList(FILE_LIST_CAP, FILE_LIST_CAP).reason, /fewer than/);
@@ -1314,7 +1397,6 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
     },
   );
   assert.equal(odd.status, 0, `${odd.stderr}\n${odd.stdout}`);
-  assert.match(odd.stdout, /Matched src\/content\/blog\/agents\.md as an agent doc with a case-insensitive name/);
   assert.match(odd.stdout, /high\tsrc\/content\/blog\/agents\.md/);
   assert.match(odd.stdout, /Label: risk:high/);
 

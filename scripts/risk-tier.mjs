@@ -40,11 +40,6 @@ export function moduleRelativePath() {
   return path.relative(scriptRoot(), fileURLToPath(import.meta.url)).split(path.sep).join('/');
 }
 
-function agentDocGlob(glob) {
-  const segment = glob.split('/').pop() ?? '';
-  return /^(?:agents|claude|review)\.md$/i.test(segment);
-}
-
 export function globSource(glob) {
   const normalized = glob.replace(/^\.\//, '');
   let source = '';
@@ -79,9 +74,9 @@ export function globSource(glob) {
 
 export function matchGlob(glob, filePath) {
   // The s flag lets ** (compiled to .*) match a newline inside a path.
-  // Agent docs compare case-insensitively. The path itself is the API string.
-  const flags = agentDocGlob(glob) ? 'is' : 's';
-  return new RegExp(`^${globSource(glob)}$`, flags).test(filePath);
+  // The caller lowercases the path once. The glob is lowercased here so the
+  // pattern compares in that same case. The path text is otherwise literal.
+  return new RegExp(`^${globSource(glob.toLowerCase())}$`, 's').test(filePath);
 }
 
 export function isUnsafeChangedPath(filePath) {
@@ -142,12 +137,13 @@ export function riskLabel(tier) {
 
 export function tierForPath(filePath, rules, alwaysHigh = ALWAYS_HIGH_GLOBS) {
   if (isUnsafeChangedPath(filePath)) return 'high';
+  const lowered = filePath.toLowerCase();
   for (const glob of alwaysHigh) {
-    if (matchGlob(glob, filePath)) return 'high';
+    if (matchGlob(glob, lowered)) return 'high';
   }
   let best = null;
   for (const rule of rules) {
-    if (!matchGlob(rule.glob, filePath)) continue;
+    if (!matchGlob(rule.glob, lowered)) continue;
     if (best === null || rankTier(rule.tier) > rankTier(best)) best = rule.tier;
   }
   return best ?? 'medium';
@@ -240,6 +236,28 @@ export function assertSingleRiskLabel(labels, tier) {
   }
 }
 
+function riskTierName(label) {
+  switch (label) {
+    case 'risk:low':
+      return 'low';
+    case 'risk:medium':
+      return 'medium';
+    case 'risk:high':
+      return 'high';
+    default: {
+      const unexpected = label;
+      throw new Error(`Unknown risk label: ${String(unexpected)}`);
+    }
+  }
+}
+
+function mergeBlockReason(labels, tier) {
+  const found = riskLabelsOn(labels);
+  if (found.length > 1) return 'conflict';
+  if (found.length === 1 && rankTier(riskTierName(found[0])) < rankTier(tier)) return 'lower';
+  return '';
+}
+
 async function bestEffortRemove(labels, removeLabel) {
   for (const label of labels) {
     try {
@@ -247,6 +265,15 @@ async function bestEffortRemove(labels, removeLabel) {
     } catch (error) {
       if (!isLabelWriteDenied(error)) throw error;
     }
+  }
+}
+
+async function rereadRiskLabels(listLabels) {
+  try {
+    return riskLabelsOn(await listLabels());
+  } catch (error) {
+    if (!isLabelWriteDenied(error)) throw error;
+    throw new Error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
   }
 }
 
@@ -265,22 +292,35 @@ export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel 
     }
   } catch (error) {
     if (!isLabelWriteDenied(error)) throw error;
-    const during = riskLabelsOn(await listLabels());
-    if (!changed && during.length <= 1) throw error;
     const desired = riskLabel(tier);
-    await bestEffortRemove(
-      during.filter((label) => label !== desired),
-      removeLabel,
-    );
-    let left = riskLabelsOn(await listLabels());
-    if (left.length > 1) await bestEffortRemove(left, removeLabel);
-    left = riskLabelsOn(await listLabels());
-    if (left.length > 1) {
+    let left = await rereadRiskLabels(listLabels);
+    if (changed || mergeBlockReason(left, tier)) {
+      await bestEffortRemove(
+        left.filter((label) => label !== desired),
+        removeLabel,
+      );
+      left = await rereadRiskLabels(listLabels);
+      if (left.length > 1) {
+        await bestEffortRemove(
+          left.filter((label) => label !== desired),
+          removeLabel,
+        );
+        left = await rereadRiskLabels(listLabels);
+      }
+    }
+    const blocked = mergeBlockReason(left, tier);
+    if (blocked === 'conflict') {
       throw new Error(
         `Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`,
       );
     }
-    throw new Error('Risk label update was denied (403) after a partial write. Fail closed.');
+    if (blocked === 'lower') {
+      throw new Error(
+        `Risk label update was denied (403) and left ${left.join(', ')}, lower than computed tier ${tier}. Fail closed.`,
+      );
+    }
+    if (left.length === 1 && left[0] === desired) return { plan, labels: left };
+    throw error;
   }
   const labels = await listLabels();
   assertSingleRiskLabel(labels, tier);
