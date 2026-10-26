@@ -1,4 +1,5 @@
 # Path tiers from REVIEW.md. Format: <low|medium|high> <glob>
+# The glob is the rest of the line and may contain spaces. No inline comment.
 # * matches one path segment. ** crosses segments.
 # The highest matching glob wins. A path that matches nothing is medium.
 # scripts/risk-tier.mjs forces ALWAYS_HIGH_GLOBS over this file.

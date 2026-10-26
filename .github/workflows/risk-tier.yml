@@ -1,6 +1,6 @@
 name: Risk tier
 
-# Runs this file from the pull request. The token cannot run with base-branch privileges.
+# Loads scripts/risk-tier.mjs and risk-tiers from the base commit and runs that copy.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -23,11 +23,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch base and head
-        run: |
-          git fetch --no-tags origin "${{ github.base_ref }}"
-          git fetch --no-tags origin "pull/${{ github.event.pull_request.number }}/head"
-
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -40,4 +35,150 @@ jobs:
       - name: Set risk label
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/risk-tier.mjs
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          export RISK_TIER_REPO="$GITHUB_WORKSPACE"
+          BASE_DIR="${RUNNER_TEMP}/risk-tier-base"
+          rm -rf "$BASE_DIR"
+          mkdir -p "$BASE_DIR/scripts"
+          if git cat-file -e "${BASE_SHA}:scripts/risk-tier.mjs" 2>/dev/null; then
+            git show "${BASE_SHA}:scripts/risk-tier.mjs" > "$BASE_DIR/scripts/risk-tier.mjs"
+            if git cat-file -e "${BASE_SHA}:risk-tiers" 2>/dev/null; then
+              git show "${BASE_SHA}:risk-tiers" > "$BASE_DIR/risk-tiers"
+            fi
+            node "$BASE_DIR/scripts/risk-tier.mjs"
+          else
+            node --input-type=module <<'END_BOOTSTRAP'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+
+          console.log('Base commit has no scripts/risk-tier.mjs. Fail closed as high.');
+          const baseSha = process.env.BASE_SHA ?? '';
+          const headSha = process.env.HEAD_SHA ?? '';
+          if (/^[0-9a-f]{40}$/i.test(baseSha) && /^[0-9a-f]{40}$/i.test(headSha)) {
+            try {
+              const output = execFileSync(
+                'git',
+                ['diff', '-z', '--name-only', `${baseSha}...${headSha}`],
+                { encoding: 'utf8' },
+              );
+              for (const file of output.split('\0').filter(Boolean).sort()) {
+                console.log(`high\t${file}`);
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              console.log(`Could not list changed files. The tier is still high. ${message.split('\n')[0]}`);
+            }
+          }
+          console.log('Computed risk tier: high');
+          console.log('Label: risk:high');
+
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const pullRequest = event.pull_request;
+          const body = typeof pullRequest?.body === 'string' ? pullRequest.body : '';
+          const checked = [];
+          const re = /^[ \t]*(?:[-*]|\d+[.)])[ \t]+\[([ xX])\][ \t]+(low|medium|high)(?![\w-])/gim;
+          for (const match of body.matchAll(re)) {
+            if (match[1].toLowerCase() === 'x') checked.push(match[2].toLowerCase());
+          }
+          const rank = { low: 0, medium: 1, high: 2 };
+          let exitCode = 0;
+          function finishBody() {
+            if (checked.length === 0) {
+              console.error('Risk tier check failed: no tier is checked in the PR body');
+              exitCode = 1;
+              return;
+            }
+            const claimed = checked.reduce((best, item) => (rank[item] > rank[best] ? item : best));
+            if (rank[claimed] < rank.high) {
+              console.error(`Risk tier check failed: checked tier ${claimed} is lower than computed tier high`);
+              exitCode = 1;
+              return;
+            }
+            console.log(`PR body check passed (checked ${claimed}, computed high).`);
+          }
+
+          const repository = process.env.GITHUB_REPOSITORY;
+          const api = (process.env.GITHUB_API_URL ?? 'https://api.github.com').replace(/\/$/, '');
+          const number = pullRequest.number;
+
+          async function request(method, urlPath, jsonBody, allow) {
+            const response = await fetch(`${api}${urlPath}`, {
+              method,
+              body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+                'User-Agent': 'risk-tier-check',
+                'X-GitHub-Api-Version': '2022-11-28',
+                ...(jsonBody === undefined ? {} : { 'Content-Type': 'application/json' }),
+              },
+            });
+            const text = response.status === 204 ? '' : await response.text();
+            if (response.status === 403) return { status: 403, data: null };
+            const allowed = new Set(allow ?? []);
+            if (!response.ok && !allowed.has(response.status)) {
+              throw new Error(`GitHub API ${response.status} for ${method} ${urlPath}: ${text.slice(0, 300)}`);
+            }
+            let data = null;
+            if (text) {
+              try {
+                data = JSON.parse(text);
+              } catch {
+                data = text;
+              }
+            }
+            return { status: response.status, data };
+          }
+
+          async function syncLabel() {
+            const repo = `/repos/${repository}`;
+            const existing = await request('GET', `${repo}/labels/${encodeURIComponent('risk:high')}`, undefined, [404]);
+            if (existing.status === 403) return false;
+            if (existing.status === 404) {
+              const created = await request(
+                'POST',
+                `${repo}/labels`,
+                { name: 'risk:high', color: 'b60205', description: 'Computed risk tier is high' },
+                [422],
+              );
+              if (created.status === 403) return false;
+            }
+            const listed = await request('GET', `${repo}/issues/${number}/labels?per_page=100`);
+            if (listed.status === 403) return false;
+            if (!Array.isArray(listed.data)) throw new Error('GitHub label list was not an array');
+            const names = listed.data.map((label) => label.name);
+            const stale = names.filter((name) => name === 'risk:low' || name === 'risk:medium');
+            if (!names.includes('risk:high')) {
+              const added = await request('POST', `${repo}/issues/${number}/labels`, { labels: ['risk:high'] });
+              if (added.status === 403) return false;
+              console.log('Added label: risk:high');
+            } else {
+              console.log('Added label: (none)');
+            }
+            for (const name of stale) {
+              const removed = await request(
+                'DELETE',
+                `${repo}/issues/${number}/labels/${encodeURIComponent(name)}`,
+                undefined,
+                [404],
+              );
+              if (removed.status === 403) return false;
+            }
+            console.log(`Removed stale labels: ${stale.join(', ') || '(none)'}`);
+            console.log('Risk labels now: risk:high');
+            return true;
+          }
+
+          try {
+            const wrote = await syncLabel();
+            if (!wrote) console.warn('Risk label write was denied (403). Continuing with the body check.');
+          } catch (error) {
+            console.error(error instanceof Error ? error.message : String(error));
+            exitCode = 1;
+          }
+          finishBody();
+          process.exitCode = exitCode;
+          END_BOOTSTRAP
+          fi

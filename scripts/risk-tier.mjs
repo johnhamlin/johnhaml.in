@@ -24,16 +24,20 @@ export const ALWAYS_HIGH_GLOBS = [
 const RISK_LABELS = ['risk:low', 'risk:medium', 'risk:high'];
 const GLOB_SPECIAL = new Set(['\\', '^', '$', '+', '.', '(', ')', '|', '[', ']', '{', '}']);
 
-export function repoRoot() {
+function scriptRoot() {
   return fileURLToPath(new URL('..', import.meta.url));
 }
 
+export function repoRoot() {
+  return process.env.RISK_TIER_REPO || scriptRoot();
+}
+
 export function riskTiersPath() {
-  return path.join(repoRoot(), TIERS_FILE);
+  return path.join(scriptRoot(), TIERS_FILE);
 }
 
 export function moduleRelativePath() {
-  return path.relative(repoRoot(), fileURLToPath(import.meta.url)).split(path.sep).join('/');
+  return path.relative(scriptRoot(), fileURLToPath(import.meta.url)).split(path.sep).join('/');
 }
 
 export function globSource(glob) {
@@ -69,7 +73,8 @@ export function globSource(glob) {
 }
 
 export function matchGlob(glob, filePath) {
-  return new RegExp(`^${globSource(glob)}$`).test(normalizePath(filePath));
+  // The s flag lets ** (compiled to .*) match a newline inside a path.
+  return new RegExp(`^${globSource(glob)}$`, 's').test(normalizePath(filePath));
 }
 
 function normalizePath(filePath) {
@@ -82,11 +87,12 @@ export function parseRiskTiers(text) {
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
     if (!line || line.startsWith('#')) continue;
-    const match = line.match(/^(low|medium|high)\s+(\S+)$/);
-    if (!match) {
+    const match = line.match(/^(low|medium|high)\s+(.+)$/);
+    const glob = match?.[2]?.trim() ?? '';
+    if (!match || !glob) {
       throw new Error(`risk-tiers:${index + 1}: expected "<tier> <glob>"`);
     }
-    rules.push({ tier: match[1], glob: match[2] });
+    rules.push({ tier: match[1], glob });
   }
   return rules;
 }
@@ -148,10 +154,42 @@ export function tierForPaths(filePaths, rules, alwaysHigh = ALWAYS_HIGH_GLOBS) {
   return best;
 }
 
+export function tierForBaseCopy(filePaths, baseDir, io = fs) {
+  const scriptPath = path.join(baseDir, CHECK_SCRIPT);
+  if (!io.existsSync(scriptPath)) return 'high';
+  const tiersPath = path.join(baseDir, TIERS_FILE);
+  const rules = io.existsSync(tiersPath) ? parseRiskTiers(io.readFileSync(tiersPath, 'utf8')) : [];
+  return tierForPaths(filePaths, rules);
+}
+
+export function isLabelWriteDenied(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith('GitHub API 403');
+}
+
+export async function reportTierResult({ tier, body, applyLabels, warn = console.warn }) {
+  try {
+    const applied = await applyLabels();
+    console.log(`Removed stale labels: ${applied.plan.remove.join(', ') || '(none)'}`);
+    console.log(`Added label: ${applied.plan.add.join(', ') || '(none)'}`);
+    console.log(`Risk labels now: ${riskLabelsOn(applied.labels).join(', ')}`);
+  } catch (error) {
+    if (!isLabelWriteDenied(error)) throw error;
+    warn('Risk label write was denied (403). Continuing with the body check.');
+  }
+  const assessment = assessBody(body, tier);
+  if (!assessment.ok) {
+    console.error(`Risk tier check failed: ${assessment.reason}`);
+    return assessment;
+  }
+  console.log(`PR body check passed (checked ${assessment.claimed}, computed ${tier}).`);
+  return assessment;
+}
+
 export function checkedTiers(body) {
   if (!body) return [];
   const tiers = [];
-  const re = /^[ \t]*(?:[-*]|\d+[.)])[ \t]+\[([ xX])\][ \t]+(low|medium|high)\b/gim;
+  const re = /^[ \t]*(?:[-*]|\d+[.)])[ \t]+\[([ xX])\][ \t]+(low|medium|high)(?![\w-])/gim;
   for (const match of body.matchAll(re)) {
     if (match[1].toLowerCase() === 'x') tiers.push(match[2].toLowerCase());
   }
@@ -424,22 +462,18 @@ async function runPullRequest(rules, env) {
   const files = changedFilesBetween(pullRequest.baseSha, pullRequest.headSha);
   const tier = printTierReport(files, rules);
   const github = createGitHub(env);
-  const applied = await applyRiskLabel({
+  const assessment = await reportTierResult({
     tier,
-    listLabels: () => github.listLabels(pullRequest.number),
-    addLabels: (labels) => github.addLabels(pullRequest.number, labels),
-    removeLabel: (label) => github.removeLabel(pullRequest.number, label),
+    body: pullRequest.body,
+    applyLabels: () =>
+      applyRiskLabel({
+        tier,
+        listLabels: () => github.listLabels(pullRequest.number),
+        addLabels: (labels) => github.addLabels(pullRequest.number, labels),
+        removeLabel: (label) => github.removeLabel(pullRequest.number, label),
+      }),
   });
-  console.log(`Removed stale labels: ${applied.plan.remove.join(', ') || '(none)'}`);
-  console.log(`Added label: ${applied.plan.add.join(', ') || '(none)'}`);
-  console.log(`Risk labels now: ${riskLabelsOn(applied.labels).join(', ')}`);
-  const assessment = assessBody(pullRequest.body, tier);
-  if (!assessment.ok) {
-    console.error(`Risk tier check failed: ${assessment.reason}`);
-    process.exitCode = 1;
-    return;
-  }
-  console.log(`PR body check passed (checked ${assessment.claimed}, computed ${tier}).`);
+  if (!assessment.ok) process.exitCode = 1;
 }
 
 export async function main(argv = process.argv.slice(2), env = process.env) {
