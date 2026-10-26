@@ -867,6 +867,9 @@ test('a malicious yarnrc in the pull request is never executed', async () => {
 test('a 403 on the label write still checks the body', async () => {
   const denied = new Error('GitHub API 403 for POST /repos/o/r/issues/1/labels: {}');
   assert.equal(isLabelWriteDenied(denied), true);
+  assert.equal(isLabelWriteDenied(new Error('GitHub API 403 for PUT /repos/o/r/issues/1/labels: {}')), true);
+  assert.equal(isLabelWriteDenied(new Error('GitHub API 403 for DELETE /repos/o/r/issues/1/labels/risk:low: {}')), true);
+  assert.equal(isLabelWriteDenied(new Error('GitHub API 403 for GET /repos/o/r/issues/1/labels: {}')), false);
   assert.equal(isLabelWriteDenied(new Error('GitHub API 500 for GET /x: {}')), false);
   const warnings = [];
   const before = process.exitCode;
@@ -974,10 +977,21 @@ test('a missing base script fails closed and still checks the body', async () =>
   assert.match(low.stderr, /checked tier low is lower than computed tier high/);
   assert.ok(lowRun.calls.includes('POST /repos/o/r/issues/6/labels'));
 
-  const denied = await runBootstrap('- [x] high — config\n', () => ({
-    status: 403,
-    body: '{"message":"Resource not accessible by integration"}',
-  }));
+  const denied = await runBootstrap('- [x] high — config\n', (request) => {
+    if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+      return { status: 200, body: JSON.stringify([{ filename: 'README.md' }]) };
+    }
+    if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+      return { status: 200, body: '{"name":"risk:high"}' };
+    }
+    if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+      return { status: 200, body: '[]' };
+    }
+    if (request.method === 'POST' || request.method === 'DELETE' || request.method === 'PUT') {
+      return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
+    }
+    return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+  });
   assert.equal(denied.status, 0, denied.stderr);
   assert.match(denied.stderr, /Risk label write was denied \(403\)\. Continuing with the body check\./);
   assert.match(denied.stdout, /PR body check passed \(checked high, computed high\)/);
@@ -1765,4 +1779,138 @@ test('a bootstrap recovery delete that succeeds followed by a re-read 403 fails 
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
   assert.equal(deletes, 1);
   assert.equal(reads, 3);
+});
+
+const READ_DENIED = '{"message":"Resource not accessible by integration"}';
+
+function filesPackage() {
+  return { status: 200, body: JSON.stringify([{ filename: 'package.json' }]) };
+}
+
+async function runRealLabelScript(onRequest) {
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-read-denied-'));
+  const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-runner-'));
+  try {
+    fs.mkdirSync(path.join(repo, 'scripts'));
+    fs.copyFileSync(
+      fileURLToPath(new URL('./risk-tier.mjs', import.meta.url)),
+      path.join(repo, 'scripts/risk-tier.mjs'),
+    );
+    fs.copyFileSync(path.join(root, 'risk-tiers'), path.join(repo, 'risk-tiers'));
+    return await runLabelStep({
+      script: labelStepScript(workflow),
+      repo,
+      runnerTemp,
+      changedFiles: 1,
+      body: '- [x] high — config\n',
+      onRequest,
+    });
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(runnerTemp, { recursive: true, force: true });
+  }
+}
+
+function assertReadDeniedFailed(result, writes) {
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.deepEqual(writes, []);
+}
+
+test('a 403 on the label list GET fails when nothing is written', async () => {
+  const writes = [];
+  const result = await runRealLabelScript((request) => {
+    const { method, urlPath } = request;
+    if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+      writes.push(`${method} ${urlPath}`);
+      return { status: 500, body: 'must not write' };
+    }
+    if (method === 'GET' && urlPath.startsWith('/repos/o/r/pulls/6/files')) return filesPackage();
+    if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
+      return { status: 403, body: READ_DENIED };
+    }
+    return { status: 500, body: `unexpected ${method} ${urlPath}` };
+  });
+  assertReadDeniedFailed(result, writes);
+  assert.match(result.stderr, /GitHub API 403 for GET \/repos\/o\/r\/issues\/6\/labels/);
+});
+
+test('a bootstrap 403 on the label list GET fails when nothing is written', async () => {
+  const writes = [];
+  let lists = 0;
+  const result = await runBootstrap('- [x] high — config\n', (request) => {
+    const { method, urlPath } = request;
+    if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+      writes.push(`${method} ${urlPath}`);
+      return { status: 500, body: 'must not write' };
+    }
+    if (method === 'GET' && urlPath.startsWith('/repos/o/r/pulls/6/files')) return filesPackage();
+    if (method === 'GET' && urlPath === '/repos/o/r/labels/risk:high') {
+      return { status: 200, body: '{"name":"risk:high"}' };
+    }
+    if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
+      lists += 1;
+      return { status: 403, body: READ_DENIED };
+    }
+    return { status: 500, body: `unexpected ${method} ${urlPath}` };
+  });
+  assertReadDeniedFailed(result, writes);
+  assert.equal(lists, 1);
+  assert.match(result.stderr, /Risk label list could not be read \(403\)\. Fail closed\./);
+});
+
+test('a 403 on the label-exists GET fails when the re-read shows no risk label', async () => {
+  const writes = [];
+  let exists = 0;
+  let lists = 0;
+  const result = await runRealLabelScript((request) => {
+    const { method, urlPath } = request;
+    if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+      writes.push(`${method} ${urlPath}`);
+      return { status: 500, body: 'must not write' };
+    }
+    if (method === 'GET' && urlPath.startsWith('/repos/o/r/pulls/6/files')) return filesPackage();
+    if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
+      lists += 1;
+      return { status: 200, body: '[]' };
+    }
+    if (method === 'GET' && urlPath === '/repos/o/r/labels/risk:high') {
+      exists += 1;
+      return { status: 403, body: READ_DENIED };
+    }
+    return { status: 500, body: `unexpected ${method} ${urlPath}` };
+  });
+  assertReadDeniedFailed(result, writes);
+  assert.equal(exists, 1);
+  assert.ok(lists >= 1);
+  assert.match(result.stderr, /GitHub API 403 for GET \/repos\/o\/r\/labels\/risk%3Ahigh/);
+});
+
+test('a bootstrap 403 on the label-exists GET fails when the re-read shows no risk label', async () => {
+  const writes = [];
+  let exists = 0;
+  let lists = 0;
+  const result = await runBootstrap('- [x] high — config\n', (request) => {
+    const { method, urlPath } = request;
+    if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
+      writes.push(`${method} ${urlPath}`);
+      return { status: 500, body: 'must not write' };
+    }
+    if (method === 'GET' && urlPath.startsWith('/repos/o/r/pulls/6/files')) return filesPackage();
+    if (method === 'GET' && urlPath === '/repos/o/r/labels/risk:high') {
+      exists += 1;
+      return { status: 403, body: READ_DENIED };
+    }
+    if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
+      lists += 1;
+      return { status: 200, body: '[]' };
+    }
+    return { status: 500, body: `unexpected ${method} ${urlPath}` };
+  });
+  assertReadDeniedFailed(result, writes);
+  assert.equal(exists, 1);
+  assert.equal(lists, 1);
+  assert.match(result.stderr, /left no risk label/);
+  assert.doesNotMatch(result.stderr, /write was denied/);
 });

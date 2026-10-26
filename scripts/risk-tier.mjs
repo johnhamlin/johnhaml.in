@@ -161,6 +161,11 @@ export function tierForPaths(filePaths, rules, alwaysHigh = ALWAYS_HIGH_GLOBS) {
 
 export function isLabelWriteDenied(error) {
   const message = error instanceof Error ? error.message : String(error);
+  return /^GitHub API 403 for (?:POST|PUT|DELETE)\b/.test(message);
+}
+
+function isGitHubDenied(error) {
+  const message = error instanceof Error ? error.message : String(error);
   return message.startsWith('GitHub API 403');
 }
 
@@ -289,7 +294,7 @@ async function readLabels(listLabels, wrote) {
     if (wrote) {
       throw new Error('Risk labels could not be re-read after a successful write. Fail closed.');
     }
-    if (!isLabelWriteDenied(error)) throw error;
+    if (!isGitHubDenied(error)) throw error;
     throw new Error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
   }
 }

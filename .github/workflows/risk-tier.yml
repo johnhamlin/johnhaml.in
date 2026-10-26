@@ -295,9 +295,33 @@ jobs:
             return left.length === 1 ? true : false;
           }
 
+          function finishConfirmed(names) {
+            const unknown = unknownResult(names);
+            if (unknown) return unknown;
+            const left = riskNames(names);
+            if (left.length > 1) {
+              console.error(`Risk label update left conflicting labels: ${left.join(', ')}. Fail closed.`);
+              return 'partial';
+            }
+            if (left.length === 1 && left[0] !== 'risk:high') {
+              console.error(`Risk label update left ${left[0]}, lower than computed tier high. Fail closed.`);
+              return 'partial';
+            }
+            if (left.length !== 1) {
+              console.error('Risk label update left no risk label. Fail closed.');
+              return 'partial';
+            }
+            console.log(`Risk labels now: ${left.join(', ')}`);
+            return true;
+          }
+
           async function syncLabel() {
             const existing = await request('GET', `${repo}/labels/${encodeURIComponent('risk:high')}`, undefined, [404]);
-            if (existing.status === 403) return false;
+            if (existing.status === 403) {
+              const confirmed = await readNames(false);
+              if (confirmed.error) return confirmed.error;
+              return finishConfirmed(confirmed.names);
+            }
             if (existing.status === 404) {
               const created = await request(
                 'POST',
@@ -308,7 +332,10 @@ jobs:
               if (created.status === 403) return false;
             }
             const listed = await issueNames();
-            if (listed.denied) return false;
+            if (listed.denied) {
+              console.error('Risk label list could not be read (403). Fail closed.');
+              return 'partial';
+            }
             let wrote = false;
             const stale = listed.names.filter((name) => name === 'risk:low' || name === 'risk:medium');
             if (!listed.names.includes('risk:high')) {
@@ -327,23 +354,7 @@ jobs:
             console.log(`Removed stale labels: ${stale.join(', ') || '(none)'}`);
             const confirmed = await readNames(wrote);
             if (confirmed.error) return confirmed.error;
-            const unknown = unknownResult(confirmed.names);
-            if (unknown) return unknown;
-            const left = riskNames(confirmed.names);
-            if (left.length > 1) {
-              console.error(`Risk label update left conflicting labels: ${left.join(', ')}. Fail closed.`);
-              return 'partial';
-            }
-            if (left.length === 1 && left[0] !== 'risk:high') {
-              console.error(`Risk label update left ${left[0]}, lower than computed tier high. Fail closed.`);
-              return 'partial';
-            }
-            if (left.length !== 1) {
-              console.error('Risk label update left no risk label. Fail closed.');
-              return 'partial';
-            }
-            console.log(`Risk labels now: ${left.join(', ')}`);
-            return true;
+            return finishConfirmed(confirmed.names);
           }
 
           const repo = `/repos/${repository}`;
