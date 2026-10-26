@@ -228,6 +228,10 @@ export function riskLabelsOn(labels) {
   return labels.filter((label) => RISK_LABELS.includes(label));
 }
 
+function unknownRiskLabels(labels) {
+  return labels.filter((label) => label.startsWith('risk:') && !RISK_LABELS.includes(label));
+}
+
 export function assertSingleRiskLabel(labels, tier) {
   const desired = riskLabel(tier);
   const found = riskLabelsOn(labels);
@@ -255,19 +259,36 @@ function mergeBlockReason(labels, tier) {
 }
 
 async function bestEffortRemove(labels, removeLabel) {
+  let wrote = false;
   for (const label of labels) {
     try {
       await removeLabel(label);
+      wrote = true;
     } catch (error) {
       if (!isLabelWriteDenied(error)) throw error;
     }
   }
+  return wrote;
 }
 
-async function rereadRiskLabels(listLabels) {
+function failUnknownRiskLabels(labels) {
+  const unknown = unknownRiskLabels(labels);
+  if (unknown.length === 0) return;
+  throw new Error(`Unknown risk label: ${unknown.join(', ')}. Fail closed.`);
+}
+
+function assertOutcome(labels, tier) {
+  failUnknownRiskLabels(labels);
+  assertSingleRiskLabel(labels, tier);
+}
+
+async function readLabels(listLabels, wrote) {
   try {
     return await listLabels();
   } catch (error) {
+    if (wrote) {
+      throw new Error('Risk labels could not be re-read after a successful write. Fail closed.');
+    }
     if (!isLabelWriteDenied(error)) throw error;
     throw new Error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
   }
@@ -276,51 +297,57 @@ async function rereadRiskLabels(listLabels) {
 export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel }) {
   const current = await listLabels();
   const plan = planLabelUpdates(current, tier);
-  let changed = false;
+  const desired = riskLabel(tier);
+  let wrote = false;
+  let denied = null;
   try {
     if (plan.add.length > 0) {
       await addLabels(plan.add);
-      changed = true;
+      wrote = true;
     }
     for (const label of plan.remove) {
       await removeLabel(label);
-      changed = true;
+      wrote = true;
     }
   } catch (error) {
     if (!isLabelWriteDenied(error)) throw error;
-    const desired = riskLabel(tier);
-    let left = riskLabelsOn(await rereadRiskLabels(listLabels));
-    if (changed || mergeBlockReason(left, tier)) {
-      await bestEffortRemove(
-        left.filter((label) => label !== desired),
-        removeLabel,
-      );
-      left = riskLabelsOn(await rereadRiskLabels(listLabels));
-      if (left.length > 1) {
-        await bestEffortRemove(
-          left.filter((label) => label !== desired),
-          removeLabel,
-        );
-        left = riskLabelsOn(await rereadRiskLabels(listLabels));
-      }
-    }
-    const blocked = mergeBlockReason(left, tier);
-    if (blocked === 'conflict') {
-      throw new Error(
-        `Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`,
-      );
-    }
-    if (blocked === 'lower') {
-      throw new Error(
-        `Risk label update was denied (403) and left ${left.join(', ')}, lower than computed tier ${tier}. Fail closed.`,
-      );
-    }
-    if (left.length === 1 && left[0] === desired) return { plan, labels: left };
-    throw error;
+    denied = error;
   }
-  const labels = await rereadRiskLabels(listLabels);
-  assertSingleRiskLabel(labels, tier);
-  return { plan, labels };
+  if (!denied) {
+    const labels = await readLabels(listLabels, wrote);
+    assertOutcome(labels, tier);
+    return { plan, labels };
+  }
+  let left = await readLabels(listLabels, wrote);
+  failUnknownRiskLabels(left);
+  if (wrote || mergeBlockReason(riskLabelsOn(left), tier)) {
+    if (await bestEffortRemove(riskLabelsOn(left).filter((label) => label !== desired), removeLabel)) {
+      wrote = true;
+    }
+    left = await readLabels(listLabels, wrote);
+    failUnknownRiskLabels(left);
+    if (riskLabelsOn(left).length > 1) {
+      if (await bestEffortRemove(riskLabelsOn(left).filter((label) => label !== desired), removeLabel)) {
+        wrote = true;
+      }
+      left = await readLabels(listLabels, wrote);
+      failUnknownRiskLabels(left);
+    }
+  }
+  const known = riskLabelsOn(left);
+  if (known.length > 1) {
+    throw new Error(
+      `Risk label update was denied (403) and left conflicting labels: ${known.join(', ')}. Fail closed.`,
+    );
+  }
+  if (known.length === 1 && rankTier(riskTierName(known[0])) < rankTier(tier)) {
+    throw new Error(
+      `Risk label update was denied (403) and left ${known.join(', ')}, lower than computed tier ${tier}. Fail closed.`,
+    );
+  }
+  if (known.length === 1 && known[0] === desired) return { plan, labels: left };
+  if (wrote) assertOutcome(left, tier);
+  throw denied;
 }
 
 export function assessFileList(entryCount, changedFiles, capped = false) {

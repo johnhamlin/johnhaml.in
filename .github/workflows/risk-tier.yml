@@ -224,31 +224,60 @@ jobs:
             );
           }
 
-          function rereadDenied() {
-            console.error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
+          function rereadFailed(wrote, denied) {
+            if (wrote) {
+              console.error('Risk labels could not be re-read after a successful write. Fail closed.');
+            } else if (denied) {
+              console.error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
+            } else {
+              console.error('Risk labels could not be re-read. Fail closed.');
+            }
             return 'partial';
           }
 
-          async function settleDenied() {
-            const now = await issueNames();
-            if (now.denied) return rereadDenied();
+          function unknownResult(names) {
+            const unknown = names.filter((name) => name.startsWith('risk:') && name !== 'risk:low' && name !== 'risk:medium' && name !== 'risk:high');
+            if (unknown.length === 0) return '';
+            console.error(`Risk label update left an unknown risk label: ${unknown.join(', ')}. Fail closed.`);
+            return 'partial';
+          }
+
+          async function readNames(wrote) {
+            try {
+              const listed = await issueNames();
+              if (listed.denied) return { error: rereadFailed(wrote, true) };
+              return { names: listed.names };
+            } catch {
+              return { error: rereadFailed(wrote, false) };
+            }
+          }
+
+          async function settleDenied(wrote) {
+            const now = await readNames(wrote);
+            if (now.error) return now.error;
+            const unknownNow = unknownResult(now.names);
+            if (unknownNow) return unknownNow;
             const dropStale = async (names) => {
               for (const name of names) {
                 if (name === 'risk:high') continue;
                 const removed = await deleteLabel(name);
-                if (removed.status === 403) return false;
+                if (removed.status === 403) return;
+                wrote = true;
               }
-              return true;
             };
             let left = riskNames(now.names);
             await dropStale(left);
-            const again = await issueNames();
-            if (again.denied) return rereadDenied();
+            const again = await readNames(wrote);
+            if (again.error) return again.error;
+            const unknownAgain = unknownResult(again.names);
+            if (unknownAgain) return unknownAgain;
             left = riskNames(again.names);
             if (left.length > 1) {
               await dropStale(left);
-              const finalRead = await issueNames();
-              if (finalRead.denied) return rereadDenied();
+              const finalRead = await readNames(wrote);
+              if (finalRead.error) return finalRead.error;
+              const unknownFinal = unknownResult(finalRead.names);
+              if (unknownFinal) return unknownFinal;
               left = riskNames(finalRead.names);
             }
             if (left.length > 1) {
@@ -257,6 +286,10 @@ jobs:
             }
             if (left.length === 1 && left[0] !== 'risk:high') {
               console.error(`Risk label update was denied (403) and left ${left[0]}, lower than computed tier high. Fail closed.`);
+              return 'partial';
+            }
+            if (wrote && left.length !== 1) {
+              console.error('Risk label update left no risk label. Fail closed.');
               return 'partial';
             }
             return left.length === 1 ? true : false;
@@ -276,31 +309,40 @@ jobs:
             }
             const listed = await issueNames();
             if (listed.denied) return false;
+            let wrote = false;
             const stale = listed.names.filter((name) => name === 'risk:low' || name === 'risk:medium');
             if (!listed.names.includes('risk:high')) {
               const added = await request('POST', `${repo}/issues/${number}/labels`, { labels: ['risk:high'] });
-              if (added.status === 403) return settleDenied();
+              if (added.status === 403) return settleDenied(wrote);
+              wrote = true;
               console.log('Added label: risk:high');
             } else {
               console.log('Added label: (none)');
             }
             for (const name of stale) {
               const removed = await deleteLabel(name);
-              if (removed.status === 403) return settleDenied();
+              if (removed.status === 403) return settleDenied(wrote);
+              wrote = true;
             }
             console.log(`Removed stale labels: ${stale.join(', ') || '(none)'}`);
-            const confirmed = await issueNames();
-            if (confirmed.denied) return rereadDenied();
+            const confirmed = await readNames(wrote);
+            if (confirmed.error) return confirmed.error;
+            const unknown = unknownResult(confirmed.names);
+            if (unknown) return unknown;
             const left = riskNames(confirmed.names);
             if (left.length > 1) {
-              console.error(`Risk label update was denied (403) and left conflicting labels: ${left.join(', ')}. Fail closed.`);
+              console.error(`Risk label update left conflicting labels: ${left.join(', ')}. Fail closed.`);
               return 'partial';
             }
             if (left.length === 1 && left[0] !== 'risk:high') {
-              console.error(`Risk label update was denied (403) and left ${left[0]}, lower than computed tier high. Fail closed.`);
+              console.error(`Risk label update left ${left[0]}, lower than computed tier high. Fail closed.`);
               return 'partial';
             }
-            console.log(`Risk labels now: ${left.join(', ') || '(none)'}`);
+            if (left.length !== 1) {
+              console.error('Risk label update left no risk label. Fail closed.');
+              return 'partial';
+            }
+            console.log(`Risk labels now: ${left.join(', ')}`);
             return true;
           }
 
@@ -312,7 +354,7 @@ jobs:
             else if (!wrote) console.warn('Risk label write was denied (403). Continuing with the body check.');
           } catch (error) {
             console.error(error instanceof Error ? error.message : String(error));
-            exitCode = 1;
+            labelFailed = true;
           }
           if (labelFailed) exitCode = 1;
           else finishBody();

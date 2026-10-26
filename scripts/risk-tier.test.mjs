@@ -429,6 +429,9 @@ test('the workflow pins actions and uses least privilege', () => {
   assert.match(label, /stops at 3000/);
   assert.match(label, /could not be re-read/);
   assert.match(label, /lower than computed tier/);
+  assert.match(label, /left no risk label/);
+  assert.match(label, /unknown risk label/);
+  assert.match(label, /after a successful write/);
   assert.match(label, /name === 'risk:high'\) continue/);
   assert.match(label, /cancel-in-progress:\s*false/);
   assert.doesNotMatch(label, /cancel-in-progress:\s*true/);
@@ -902,21 +905,42 @@ test('a 403 on the label write still checks the body', async () => {
   assert.equal(process.exitCode, before);
 });
 
-test('a missing base script fails closed and still checks the body', async () => {
+function rememberIssueLabels(initial = []) {
+  const names = [...initial];
+  return {
+    names,
+    respond(request) {
+      const { method, urlPath } = request;
+      if (method === 'GET' && urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: JSON.stringify(names.map((name) => ({ name }))) };
+      }
+      if (method === 'POST' && urlPath === '/repos/o/r/issues/6/labels') {
+        if (!names.includes('risk:high')) names.push('risk:high');
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      if (method === 'DELETE' && urlPath.startsWith('/repos/o/r/issues/6/labels/')) {
+        const name = decodeURIComponent(urlPath.slice(urlPath.lastIndexOf('/') + 1));
+        const index = names.indexOf(name);
+        if (index >= 0) names.splice(index, 1);
+        return { status: 204, body: '' };
+      }
+      return null;
+    },
+  };
+}
+
+function trackingOkHandler() {
   const calls = [];
-  function okHandler(request) {
+  const issues = rememberIssueLabels();
+  function handler(request) {
     calls.push(`${request.method} ${request.urlPath}`);
+    const issue = issues.respond(request);
+    if (issue) return issue;
     if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
       return { status: 404, body: '' };
     }
     if (request.method === 'POST' && request.urlPath === '/repos/o/r/labels') {
       return { status: 201, body: '{"name":"risk:high"}' };
-    }
-    if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-      return { status: 200, body: '[]' };
-    }
-    if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-      return { status: 200, body: '[{"name":"risk:high"}]' };
     }
     if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
       return {
@@ -928,21 +952,27 @@ test('a missing base script fails closed and still checks the body', async () =>
     }
     return { status: 500, body: 'unexpected' };
   }
+  return { calls, handler, names: issues.names };
+}
 
-  const high = await runBootstrap('- [x] high — config\n', okHandler);
+test('a missing base script fails closed and still checks the body', async () => {
+  const highRun = trackingOkHandler();
+  const high = await runBootstrap('- [x] high — config\n', highRun.handler);
   assert.equal(high.status, 0, high.stderr);
   assert.match(high.stdout, /Fail closed as high/);
   assert.match(high.stdout, /high\tAGENTS\.md/);
   assert.match(high.stdout, /high\tdocs\/AGENTS\.md/);
   assert.match(high.stdout, /Label: risk:high/);
+  assert.match(high.stdout, /Risk labels now: risk:high/);
   assert.match(high.stdout, /PR body check passed \(checked high, computed high\)/);
-  assert.ok(calls.includes('POST /repos/o/r/issues/6/labels'));
+  assert.ok(highRun.calls.includes('POST /repos/o/r/issues/6/labels'));
+  assert.deepEqual(highRun.names, ['risk:high']);
 
-  calls.length = 0;
-  const low = await runBootstrap('- [x] low — posts\n', okHandler);
+  const lowRun = trackingOkHandler();
+  const low = await runBootstrap('- [x] low — posts\n', lowRun.handler);
   assert.equal(low.status, 1);
   assert.match(low.stderr, /checked tier low is lower than computed tier high/);
-  assert.ok(calls.includes('POST /repos/o/r/issues/6/labels'));
+  assert.ok(lowRun.calls.includes('POST /repos/o/r/issues/6/labels'));
 
   const denied = await runBootstrap('- [x] high — config\n', () => ({
     status: 403,
@@ -952,7 +982,7 @@ test('a missing base script fails closed and still checks the body', async () =>
   assert.match(denied.stderr, /Risk label write was denied \(403\)\. Continuing with the body check\./);
   assert.match(denied.stdout, /PR body check passed \(checked high, computed high\)/);
 
-  const prefix = await runBootstrap('- [x] low-priority\n', okHandler);
+  const prefix = await runBootstrap('- [x] low-priority\n', trackingOkHandler().handler);
   assert.equal(prefix.status, 1);
   assert.match(prefix.stderr, /no tier is checked/);
 });
@@ -1005,20 +1035,17 @@ test('a pull file list shorter than changed_files fails closed as high', async (
     fs.rmSync(runnerTemp, { recursive: true, force: true });
   }
 
+  const bootIssues = rememberIssueLabels();
   const boot = await runBootstrap(
     '- [x] high — config\n',
     (request) => {
+      const issue = bootIssues.respond(request);
+      if (issue) return issue;
       if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
         return { status: 200, body: JSON.stringify(renamed) };
       }
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
         return { status: 200, body: '{"name":"risk:high"}' };
-      }
-      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[]' };
-      }
-      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[{"name":"risk:high"}]' };
       }
       return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
     },
@@ -1378,20 +1405,17 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
   assert.doesNotMatch(invalid.stdout, /^low\t/m);
   assert.deepEqual(invalidLabels, ['risk:high']);
 
+  const oddIssues = rememberIssueLabels();
   const odd = await runBootstrap(
     '- [x] high — config\n',
     (request) => {
+      const issue = oddIssues.respond(request);
+      if (issue) return issue;
       if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
         return { status: 200, body: JSON.stringify([{ filename: 'src/content/blog/agents.md' }]) };
       }
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
         return { status: 200, body: '{"name":"risk:high"}' };
-      }
-      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[]' };
-      }
-      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[{"name":"risk:high"}]' };
       }
       return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
     },
@@ -1400,20 +1424,17 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
   assert.match(odd.stdout, /high\tsrc\/content\/blog\/agents\.md/);
   assert.match(odd.stdout, /Label: risk:high/);
 
+  const unsafeIssues = rememberIssueLabels();
   const bootUnsafe = await runBootstrap(
     '- [x] high — config\n',
     (request) => {
+      const issue = unsafeIssues.respond(request);
+      if (issue) return issue;
       if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
         return { status: 200, body: JSON.stringify([{ filename: traversal }]) };
       }
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
         return { status: 200, body: '{"name":"risk:high"}' };
-      }
-      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[]' };
-      }
-      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[{"name":"risk:high"}]' };
       }
       return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
     },
@@ -1423,20 +1444,17 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
   assert.match(bootUnsafe.stdout, /high\tsrc\/content\/blog\/\.\.\/blog\/post\.mdx/);
   assert.doesNotMatch(bootUnsafe.stdout, /high\tsrc\/content\/blog\/post\.mdx/);
 
+  const invalidIssues = rememberIssueLabels();
   const bootInvalid = await runBootstrap(
     '- [x] low — posts\n',
     (request) => {
+      const issue = invalidIssues.respond(request);
+      if (issue) return issue;
       if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
         return { status: 200, body: JSON.stringify([{ filename: 'README.md' }]) };
       }
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
         return { status: 200, body: '{"name":"risk:high"}' };
-      }
-      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[]' };
-      }
-      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[{"name":"risk:high"}]' };
       }
       return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
     },
@@ -1450,20 +1468,17 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
   assert.match(bootInvalid.stdout, /Label: risk:high/);
   assert.match(bootInvalid.stderr, /checked tier low is lower than computed tier high/);
 
+  const capIssues = rememberIssueLabels();
   const bootCap = await runBootstrap(
     '- [x] high — config\n',
     (request) => {
+      const issue = capIssues.respond(request);
+      if (issue) return issue;
       if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
         return { status: 200, body: JSON.stringify(many) };
       }
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
         return { status: 200, body: '{"name":"risk:high"}' };
-      }
-      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[]' };
-      }
-      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-        return { status: 200, body: '[{"name":"risk:high"}]' };
       }
       return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
     },
@@ -1558,6 +1573,7 @@ test('a bootstrap re-read that shows a lower risk label fails the check', async 
   );
   assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
   assert.match(result.stderr, /left risk:low, lower than computed tier high/);
+  assert.doesNotMatch(result.stderr, /403/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
   assert.equal(reads, 2);
 });
@@ -1565,15 +1581,19 @@ test('a bootstrap re-read that shows a lower risk label fails the check', async 
 test('a bootstrap re-read that shows two risk labels after a delete fails the check', async () => {
   let reads = 0;
   let deletes = 0;
+  const names = ['risk:low', 'risk:high'];
   const result = await runBootstrap(
     '- [x] high — config\n',
     bootstrapIssueLabels((request) => {
       if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
         reads += 1;
-        return { status: 200, body: '[{"name":"risk:low"},{"name":"risk:high"}]' };
+        const shown = deletes === 0 ? names : [...names, 'risk:medium'];
+        return { status: 200, body: JSON.stringify(shown.map((name) => ({ name }))) };
       }
       if (request.method === 'DELETE' && request.urlPath === '/repos/o/r/issues/6/labels/risk:low') {
         deletes += 1;
+        const index = names.indexOf('risk:low');
+        if (index >= 0) names.splice(index, 1);
         return { status: 204, body: '' };
       }
       if (request.method === 'DELETE' && request.urlPath === '/repos/o/r/issues/6/labels/risk:high') {
@@ -1583,8 +1603,166 @@ test('a bootstrap re-read that shows two risk labels after a delete fails the ch
     }),
   );
   assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
-  assert.match(result.stderr, /conflicting labels: risk:low, risk:high/);
+  assert.match(result.stderr, /conflicting labels: risk:high, risk:medium/);
+  assert.doesNotMatch(result.stderr, /403|risk:low/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
   assert.equal(deletes, 1);
+  assert.deepEqual(names, ['risk:high']);
   assert.equal(reads, 2);
+});
+
+test('a successful write whose re-read shows no risk label fails the check', async () => {
+  let reads = 0;
+  const warnings = [];
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: (message) => warnings.push(message),
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => {
+              reads += 1;
+              if (reads === 1) return [];
+              return ['documentation'];
+            },
+            addLabels: async () => {},
+            removeLabel: async () => {
+              throw new Error('should not remove');
+            },
+          }),
+      }),
+    /Expected exactly one label risk:high, found none/,
+  );
+  assert.equal(reads, 2);
+  assert.deepEqual(warnings, []);
+});
+
+test('a bootstrap re-read that shows no risk label after a successful write fails the check', async () => {
+  let reads = 0;
+  let posts = 0;
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        reads += 1;
+        return { status: 200, body: '[]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        posts += 1;
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /left no risk label/);
+  assert.doesNotMatch(result.stderr, /403/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.equal(posts, 1);
+  assert.equal(reads, 2);
+});
+
+test('an unknown risk label fails the check', async () => {
+  const warnings = [];
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: (message) => warnings.push(message),
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => ['risk:high', 'risk:foo'],
+            addLabels: async () => {
+              throw new Error('should not add');
+            },
+            removeLabel: async () => {
+              throw new Error('should not remove');
+            },
+          }),
+      }),
+    /Unknown risk label: risk:foo/,
+  );
+  assert.deepEqual(warnings, []);
+});
+
+test('a bootstrap re-read that shows an unknown risk label fails the check', async () => {
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"},{"name":"risk:foo"}]' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /unknown risk label: risk:foo/);
+  assert.doesNotMatch(result.stderr, /403/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+});
+
+test('a recovery write that succeeds followed by a re-read 403 fails the check', async () => {
+  let reads = 0;
+  let removes = 0;
+  const warnings = [];
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: (message) => warnings.push(message),
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => {
+              reads += 1;
+              if (reads < 3) return ['risk:low'];
+              throw new Error('GitHub API 403 for GET /repos/o/r/issues/6/labels: {}');
+            },
+            addLabels: async () => {
+              throw new Error('GitHub API 403 for POST /repos/o/r/issues/6/labels: {}');
+            },
+            removeLabel: async () => {
+              removes += 1;
+            },
+          }),
+      }),
+    /could not be re-read after a successful write/,
+  );
+  assert.equal(removes, 1);
+  assert.equal(reads, 3);
+  assert.deepEqual(warnings, []);
+});
+
+test('a bootstrap recovery delete that succeeds followed by a re-read 403 fails the check', async () => {
+  let reads = 0;
+  let deletes = 0;
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        reads += 1;
+        if (reads < 3) return { status: 200, body: '[{"name":"risk:low"}]' };
+        return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
+      }
+      if (request.method === 'DELETE' && request.urlPath === '/repos/o/r/issues/6/labels/risk:low') {
+        deletes += 1;
+        return { status: 204, body: '' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /could not be re-read after a successful write/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.equal(deletes, 1);
+  assert.equal(reads, 3);
 });
