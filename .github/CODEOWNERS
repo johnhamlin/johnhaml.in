@@ -2,7 +2,6 @@
 # Last matching pattern wins. Low and medium paths are not listed.
 
 /astro.config.mjs @johnhamlin
-/.github/workflows/ @johnhamlin
 /public/_headers @johnhamlin
 /public/_redirects @johnhamlin
 /package.json @johnhamlin

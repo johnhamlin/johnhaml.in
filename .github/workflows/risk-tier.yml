@@ -1,27 +1,30 @@
 name: Risk tier
 
-# Loads scripts/risk-tier.mjs and risk-tiers from the base commit and runs that copy.
+# On pull_request, GitHub runs this file from the pull request. The label job
+# does not execute pull request code: it runs the base commit's script, or fails
+# closed when that script is absent. Unit tests run in a separate read-only job.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: risk-tier-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  risk-tier:
-    name: Label risk tier
+  test:
+    name: Unit tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -31,6 +34,24 @@ jobs:
 
       - name: Unit tests
         run: node --test scripts/risk-tier.test.mjs
+
+  risk-tier:
+    name: Label risk tier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22.16.0"
 
       - name: Set risk label
         env:

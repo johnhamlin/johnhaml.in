@@ -154,14 +154,6 @@ export function tierForPaths(filePaths, rules, alwaysHigh = ALWAYS_HIGH_GLOBS) {
   return best;
 }
 
-export function tierForBaseCopy(filePaths, baseDir, io = fs) {
-  const scriptPath = path.join(baseDir, CHECK_SCRIPT);
-  if (!io.existsSync(scriptPath)) return 'high';
-  const tiersPath = path.join(baseDir, TIERS_FILE);
-  const rules = io.existsSync(tiersPath) ? parseRiskTiers(io.readFileSync(tiersPath, 'utf8')) : [];
-  return tierForPaths(filePaths, rules);
-}
-
 export function isLabelWriteDenied(error) {
   const message = error instanceof Error ? error.message : String(error);
   return message.startsWith('GitHub API 403');
