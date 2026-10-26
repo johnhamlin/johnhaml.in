@@ -1,8 +1,10 @@
 name: Risk tier
 
 # On pull_request, GitHub runs this file from the pull request. The label job
-# does not execute pull request code: it runs the base commit's script, or fails
-# closed when that script is absent. Unit tests run in a separate read-only job.
+# checks out only the base commit and reads changed paths from the files API.
+# Pull request files are not downloaded there. Unit tests run in a read-only job.
+# A pull request that edits this workflow file can skip the check. CODEOWNERS
+# and branch protection are the backstop.
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
@@ -42,59 +44,22 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Checkout
+      - name: Checkout base
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
           persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22.16.0"
 
       - name: Set risk label
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          export RISK_TIER_REPO="$GITHUB_WORKSPACE"
-          BASE_DIR="${RUNNER_TEMP}/risk-tier-base"
-          rm -rf "$BASE_DIR"
-          mkdir -p "$BASE_DIR/scripts"
-          if git cat-file -e "${BASE_SHA}:scripts/risk-tier.mjs" 2>/dev/null; then
-            git show "${BASE_SHA}:scripts/risk-tier.mjs" > "$BASE_DIR/scripts/risk-tier.mjs"
-            if git cat-file -e "${BASE_SHA}:risk-tiers" 2>/dev/null; then
-              git show "${BASE_SHA}:risk-tiers" > "$BASE_DIR/risk-tiers"
-            fi
-            node "$BASE_DIR/scripts/risk-tier.mjs"
-          else
+          if [ ! -f scripts/risk-tier.mjs ] || [ ! -f risk-tiers ]; then
             node --input-type=module <<'END_BOOTSTRAP'
           import fs from 'node:fs';
-          import { execFileSync } from 'node:child_process';
 
-          console.log('Base commit has no scripts/risk-tier.mjs. Fail closed as high.');
-          const baseSha = process.env.BASE_SHA ?? '';
-          const headSha = process.env.HEAD_SHA ?? '';
-          if (/^[0-9a-f]{40}$/i.test(baseSha) && /^[0-9a-f]{40}$/i.test(headSha)) {
-            try {
-              const output = execFileSync(
-                'git',
-                ['diff', '-z', '--name-only', `${baseSha}...${headSha}`],
-                { encoding: 'utf8' },
-              );
-              for (const file of output.split('\0').filter(Boolean).sort()) {
-                console.log(`high\t${file}`);
-              }
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              console.log(`Could not list changed files. The tier is still high. ${message.split('\n')[0]}`);
-            }
-          }
-          console.log('Computed risk tier: high');
-          console.log('Label: risk:high');
-
+          console.log('Base commit is missing scripts/risk-tier.mjs or risk-tiers. Fail closed as high.');
           const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
           const pullRequest = event.pull_request;
           const body = typeof pullRequest?.body === 'string' ? pullRequest.body : '';
@@ -124,8 +89,17 @@ jobs:
           const api = (process.env.GITHUB_API_URL ?? 'https://api.github.com').replace(/\/$/, '');
           const number = pullRequest.number;
 
+          function nextLink(header) {
+            if (!header) return null;
+            for (const part of header.split(',')) {
+              const match = part.match(/<([^>]+)>;\s*rel="next"/);
+              if (match) return match[1];
+            }
+            return null;
+          }
+
           async function request(method, urlPath, jsonBody, allow) {
-            const response = await fetch(`${api}${urlPath}`, {
+            const response = await fetch(urlPath.startsWith('http') ? urlPath : `${api}${urlPath}`, {
               method,
               body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
               headers: {
@@ -137,7 +111,7 @@ jobs:
               },
             });
             const text = response.status === 204 ? '' : await response.text();
-            if (response.status === 403) return { status: 403, data: null };
+            if (response.status === 403) return { status: 403, data: null, next: null };
             const allowed = new Set(allow ?? []);
             if (!response.ok && !allowed.has(response.status)) {
               throw new Error(`GitHub API ${response.status} for ${method} ${urlPath}: ${text.slice(0, 300)}`);
@@ -150,8 +124,34 @@ jobs:
                 data = text;
               }
             }
-            return { status: response.status, data };
+            return { status: response.status, data, next: nextLink(response.headers.get('link')) };
           }
+
+          try {
+            const files = [];
+            let url = `/repos/${repository}/pulls/${number}/files?per_page=100`;
+            while (url) {
+              const page = await request('GET', url);
+              if (page.status === 403) {
+                console.log('Could not list changed files. The tier is still high. GitHub API 403');
+                break;
+              }
+              if (!Array.isArray(page.data)) throw new Error('GitHub pull file list was not an array');
+              for (const entry of page.data) {
+                if (typeof entry?.filename === 'string' && entry.filename) files.push(entry.filename);
+                if (typeof entry?.previous_filename === 'string' && entry.previous_filename) {
+                  files.push(entry.previous_filename);
+                }
+              }
+              url = page.next;
+            }
+            for (const file of [...new Set(files)].sort()) console.log(`high\t${file}`);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.log(`Could not list changed files. The tier is still high. ${message.split('\n')[0]}`);
+          }
+          console.log('Computed risk tier: high');
+          console.log('Label: risk:high');
 
           async function syncLabel() {
             const repo = `/repos/${repository}`;
@@ -202,4 +202,6 @@ jobs:
           finishBody();
           process.exitCode = exitCode;
           END_BOOTSTRAP
+          else
+            node scripts/risk-tier.mjs
           fi

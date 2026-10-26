@@ -17,9 +17,9 @@ import {
   globSource,
   isLabelWriteDenied,
   loadRiskTiers,
+  filesFromPullEntries,
   matchGlob,
   moduleRelativePath,
-  parseNameStatusZ,
   parseRiskTiers,
   planLabelUpdates,
   pullRequestFromEvent,
@@ -47,9 +47,9 @@ const REVIEW_RULES = [
   ['high', 'src/env.d.ts'],
   ['high', '.env'],
   ['high', '.env.*'],
-  ['high', 'REVIEW.md'],
-  ['high', 'CLAUDE.md'],
-  ['high', 'AGENTS.md'],
+  ['high', '**/REVIEW.md'],
+  ['high', '**/CLAUDE.md'],
+  ['high', '**/AGENTS.md'],
   ['high', '.cursor/**'],
   ['high', '.github/pull_request_template.md'],
   ['medium', 'src/components/**'],
@@ -80,6 +80,7 @@ const LOW_ON_HIGH_BODY = [
 function exampleForGlob(glob) {
   if (glob === '**/.env') return 'nested/.env';
   if (glob === '**/.env.*') return 'nested/.env.local';
+  if (glob.startsWith('**/')) return `src/content/blog/${glob.slice(3)}`;
   if (glob.endsWith('/**')) return `${glob.slice(0, -3)}/example`;
   if (glob.endsWith('.*')) return `${glob.slice(0, -1)}local`;
   return glob;
@@ -154,6 +155,11 @@ test('risk-tiers file maps the REVIEW.md path tiers', () => {
   assert.equal(tierForPath('src/styles/globals.css', rules), 'medium');
   assert.equal(tierForPath('src/styles/blog.css', rules), 'medium');
   assert.equal(tierForPath('README.md', rules), 'low');
+  assert.equal(tierForPath('AGENTS.md', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/AGENTS.md', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/CLAUDE.md', rules), 'high');
+  assert.equal(tierForPath('docs/REVIEW.md', rules), 'high');
+  assert.equal(tierForPath('src/content/blog/hello-world.mdx', rules), 'low');
   assert.equal(tierForPath('src/types/global.d.ts', rules), 'medium');
   assert.equal(path.relative(root, riskTiersPath()), TIERS_FILE);
 });
@@ -329,15 +335,17 @@ test('a label sync that leaves two risk labels fails', async () => {
 });
 
 test('renames count both paths toward the tier', () => {
-  const files = parseNameStatusZ(
-    'R100\0README.md\0docs/README.md\0M\0src/content/blog/hello-world.mdx\0',
-  );
+  const files = filesFromPullEntries([
+    { status: 'renamed', previous_filename: 'README.md', filename: 'docs/README.md' },
+    { status: 'modified', filename: 'src/content/blog/hello-world.mdx' },
+  ]);
   assert.deepEqual(files, [
     'README.md',
     'docs/README.md',
     'src/content/blog/hello-world.mdx',
   ]);
   assert.equal(tierForPaths(files, rules), 'medium');
+  assert.throws(() => filesFromPullEntries(null), /not an array/);
 });
 
 test('CODEOWNERS lists @johnhamlin on every high path', () => {
@@ -354,6 +362,9 @@ test('CODEOWNERS lists @johnhamlin on every high path', () => {
     assert.equal(owners.includes('@johnhamlin'), true, filePath);
   }
   assert.equal(text.includes('/.github/workflows/'), false);
+  for (const filePath of ['AGENTS.md', 'src/content/blog/AGENTS.md', 'CLAUDE.md', 'docs/REVIEW.md']) {
+    assert.equal(ownersFor(text, filePath)?.includes('@johnhamlin'), true, filePath);
+  }
   for (const filePath of [
     'src/content/blog/hello-world.mdx',
     'src/content/text/about.mdx',
@@ -384,7 +395,11 @@ test('the workflow pins actions and uses least privilege', () => {
   assert.match(tests, /node --test scripts\/risk-tier\.test\.mjs/);
   assert.match(label, /permissions:\n {6}contents: read\n {6}pull-requests: write\n/);
   assert.doesNotMatch(label, /node --test/);
-  assert.doesNotMatch(label, /node scripts\/risk-tier\.mjs/);
+  assert.doesNotMatch(label, /setup-node|\bnpm\b|\byarn\b|\bpnpm\b/);
+  assert.match(label, /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/);
+  assert.doesNotMatch(label, /head\.sha|github\.sha/);
+  assert.equal([...label.matchAll(/actions\/checkout@/g)].length, 1);
+  assert.match(label, /node scripts\/risk-tier\.mjs/);
   const checkoutPins = [
     ...workflow.matchAll(/uses:\s*(actions\/checkout@[0-9a-f]{40})/g),
   ].map((match) => match[1]);
@@ -395,29 +410,28 @@ test('the workflow pins actions and uses least privilege', () => {
     'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
     'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
   ]);
-  assert.deepEqual(nodePins, [
-    'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1',
-    'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1',
-  ]);
+  assert.deepEqual(nodePins, ['actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1']);
+  assert.match(tests, /setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1/);
   assert.equal(
     [...workflow.matchAll(/persist-credentials:\s*false/g)].length,
     checkoutPins.length,
   );
-  assert.match(workflow, /node-version:\s*"22\.16\.0"/);
-  assert.match(label, /fetch-depth:\s*0/);
-  assert.match(label, /git cat-file -e/);
-  assert.match(label, /node "\$BASE_DIR\/scripts\/risk-tier\.mjs"/);
+  assert.match(tests, /node-version:\s*"22\.16\.0"/);
+  assert.match(label, /fetch-depth:\s*1/);
   assert.match(label, /Fail closed as high/);
+  assert.match(label, /pulls\/\$\{number\}\/files\?per_page=100/);
+  assert.match(label, /previous_filename/);
   assert.match(label, /END_BOOTSTRAP/);
-  assert.doesNotMatch(workflow, /git fetch/);
+  assert.doesNotMatch(workflow, /git fetch|git diff|git show|git cat-file/);
   const script = labelStepScript(workflow);
   assert.equal(script.includes('node --test'), false);
   assert.equal(script.includes('${{'), false);
+  assert.doesNotMatch(script, /\bgit\b/);
   const syntax = spawnSync('bash', ['-n'], { input: script, encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
   for (const line of workflow.split('\n')) {
     if (!line.includes('${{')) continue;
-    assert.match(line, /^\s+(?:group|GITHUB_TOKEN|BASE_SHA|HEAD_SHA):/);
+    assert.match(line, /^\s+(?:group|GITHUB_TOKEN|ref):/);
   }
   assert.deepEqual(
     [...workflow.matchAll(/secrets\.([A-Z0-9_]+)/g)].map((match) => match[1]),
@@ -442,8 +456,9 @@ test('REVIEW.md and the PR template make the risk label the source of truth', ()
   }
   assert.equal(review.indexOf('## Risk label') > review.indexOf('## Sources'), true);
   assert.match(review, /`risk:low`, `risk:medium`, or `risk:high` label is the source of truth/);
-  assert.match(review, /base commit/);
-  assert.match(review, /no script yet/);
+  assert.match(review, /only the base commit/);
+  assert.match(review, /files API/);
+  assert.match(review, /no script or no `risk-tiers` yet/);
   assert.match(review, /pull request's own workflow file/);
   assert.match(review, /edits the workflow can skip this check/);
   assert.match(review, /CODEOWNERS/);
@@ -474,6 +489,12 @@ test('pull request events expose the compared shas and body', () => {
   );
 });
 
+function writeCommand(dir, name) {
+  const file = path.join(dir, name);
+  fs.writeFileSync(file, `#!/bin/sh\necho ${name}-executed >> "$RISK_TIER_COMMAND_LOG"\n`);
+  fs.chmodSync(file, 0o755);
+}
+
 function jobBlock(workflow, id) {
   const marker = `\n  ${id}:\n`;
   const start = workflow.indexOf(marker);
@@ -481,24 +502,6 @@ function jobBlock(workflow, id) {
   const rest = workflow.slice(start + 1);
   const next = rest.slice(1).search(/\n {2}[a-z0-9-]+:\n/);
   return next === -1 ? rest : rest.slice(0, next + 1);
-}
-
-function gitEnv() {
-  return {
-    PATH: process.env.PATH ?? '',
-    HOME: process.env.HOME ?? os.tmpdir(),
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_AUTHOR_NAME: 'Risk Tier Test',
-    GIT_AUTHOR_EMAIL: 'risk-tier@example.com',
-    GIT_COMMITTER_NAME: 'Risk Tier Test',
-    GIT_COMMITTER_EMAIL: 'risk-tier@example.com',
-  };
-}
-
-function git(cwd, args) {
-  const result = spawnSync('git', args, { cwd, encoding: 'utf8', env: gitEnv() });
-  assert.equal(result.status, 0, `${args.join(' ')}\n${result.stderr}`);
-  return result.stdout.trim();
 }
 
 function labelStepScript(workflow) {
@@ -528,9 +531,18 @@ function runBootstrap(body, onRequest) {
     const server = http.createServer(async (req, res) => {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
-      const urlPath = decodeURIComponent((req.url ?? '').split('?')[0]);
-      const result = onRequest({ method: req.method ?? 'GET', urlPath, raw: Buffer.concat(chunks).toString('utf8') });
-      res.writeHead(result.status, { 'content-type': 'application/json' });
+      const rawUrl = req.url ?? '';
+      const urlPath = decodeURIComponent(rawUrl.split('?')[0]);
+      const result = onRequest({
+        method: req.method ?? 'GET',
+        urlPath,
+        rawUrl,
+        raw: Buffer.concat(chunks).toString('utf8'),
+      });
+      res.writeHead(result.status, {
+        'content-type': 'application/json',
+        ...(result.headers ?? {}),
+      });
       res.end(result.body ?? '');
     });
     server.on('error', reject);
@@ -588,14 +600,23 @@ function runBootstrap(body, onRequest) {
   });
 }
 
-function runLabelStep({ script, repo, runnerTemp, baseSha, headSha, body, onRequest }) {
+function runLabelStep({ script, repo, runnerTemp, body, onRequest, pathEnv, extraEnv }) {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
-      const urlPath = decodeURIComponent((req.url ?? '').split('?')[0]);
-      const result = onRequest({ method: req.method ?? 'GET', urlPath, raw: Buffer.concat(chunks).toString('utf8') });
-      res.writeHead(result.status, { 'content-type': 'application/json' });
+      const rawUrl = req.url ?? '';
+      const urlPath = decodeURIComponent(rawUrl.split('?')[0]);
+      const result = onRequest({
+        method: req.method ?? 'GET',
+        urlPath,
+        rawUrl,
+        raw: Buffer.concat(chunks).toString('utf8'),
+      });
+      res.writeHead(result.status, {
+        'content-type': 'application/json',
+        ...(result.headers ?? {}),
+      });
       res.end(result.body ?? '');
     });
     server.on('error', reject);
@@ -609,17 +630,21 @@ function runLabelStep({ script, repo, runnerTemp, baseSha, headSha, body, onRequ
       fs.writeFileSync(
         eventPath,
         JSON.stringify({
-          pull_request: { number: 6, body, base: { sha: baseSha }, head: { sha: headSha } },
+          pull_request: {
+            number: 6,
+            body,
+            base: { sha: 'a'.repeat(40) },
+            head: { sha: 'b'.repeat(40) },
+          },
         }),
       );
       const child = spawn('bash', ['-s'], {
         cwd: repo,
         env: {
-          ...gitEnv(),
+          PATH: pathEnv ?? process.env.PATH ?? '',
+          ...extraEnv,
           GITHUB_WORKSPACE: repo,
           RUNNER_TEMP: runnerTemp,
-          BASE_SHA: baseSha,
-          HEAD_SHA: headSha,
           GITHUB_TOKEN: 'test-token',
           GITHUB_REPOSITORY: 'o/r',
           GITHUB_API_URL: `http://127.0.0.1:${address.port}`,
@@ -665,7 +690,10 @@ test('risk-tiers globs may contain spaces', () => {
 });
 
 test('deletes, spaces, dotfiles, and newline paths keep their tier', () => {
-  const deleted = parseNameStatusZ('D\0src/lib/blog.ts\0D\0src/content/blog/my post.mdx\0');
+  const deleted = filesFromPullEntries([
+    { status: 'removed', filename: 'src/lib/blog.ts' },
+    { status: 'removed', filename: 'src/content/blog/my post.mdx' },
+  ]);
   assert.deepEqual(deleted, ['src/content/blog/my post.mdx', 'src/lib/blog.ts']);
   assert.equal(tierForPaths(deleted, rules), 'high');
   assert.equal(tierForPaths(['src/content/blog/my post.mdx'], rules), 'low');
@@ -676,77 +704,124 @@ test('deletes, spaces, dotfiles, and newline paths keep their tier', () => {
   assert.equal(matchGlob('src/content/blog/**', newlinePath), true);
   assert.equal(matchGlob('**', newlinePath), true);
   assert.equal(matchGlob('src/content/text/*', 'src/content/text/hello/world.mdx'), false);
-  assert.deepEqual(parseNameStatusZ(`D\0${newlinePath}\0`), [newlinePath]);
+  assert.deepEqual(filesFromPullEntries([{ status: 'removed', filename: newlinePath }]), [newlinePath]);
   assert.equal(tierForPaths([newlinePath], rules), 'low');
 });
 
-test('a tampered pull request script is ignored and the base copy runs', async () => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-repo-'));
+function labelApi(issueLabels, filesFor) {
+  return (request) => {
+    if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+      return filesFor(request);
+    }
+    if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+      return { status: 404, body: '' };
+    }
+    if (request.method === 'POST' && request.urlPath === '/repos/o/r/labels') {
+      return { status: 201, body: '{"name":"risk:high"}' };
+    }
+    if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+      return { status: 200, body: JSON.stringify(issueLabels.map((name) => ({ name }))) };
+    }
+    if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+      issueLabels.push('risk:high');
+      return { status: 200, body: '[{"name":"risk:high"}]' };
+    }
+    return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+  };
+}
+
+test('a missing risk-tiers file fails closed as high', async () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-missing-tiers-'));
   const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-runner-'));
-  const realScript = fs.readFileSync(fileURLToPath(new URL('./risk-tier.mjs', import.meta.url)), 'utf8');
-  const tampered = [
-    "console.log('tampered-pr-script');",
-    "console.log('low\\tscripts/risk-tier.mjs');",
-    "console.log('Computed risk tier: low');",
-    "console.log('Label: risk:low');",
-    '',
-  ].join('\n');
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
   try {
     fs.mkdirSync(path.join(repo, 'scripts'));
-    fs.writeFileSync(path.join(repo, 'scripts/risk-tier.mjs'), realScript);
-    fs.writeFileSync(path.join(repo, 'risk-tiers'), 'low **\nlow scripts/risk-tier.mjs\n');
-    git(repo, ['init', '-b', 'main']);
-    git(repo, ['add', 'scripts/risk-tier.mjs', 'risk-tiers']);
-    git(repo, ['-c', 'commit.gpgsign=false', 'commit', '-m', 'base']);
-    const baseSha = git(repo, ['rev-parse', 'HEAD']);
-    fs.writeFileSync(path.join(repo, 'scripts/risk-tier.mjs'), tampered);
-    git(repo, ['add', 'scripts/risk-tier.mjs']);
-    git(repo, ['-c', 'commit.gpgsign=false', 'commit', '-m', 'tamper']);
-    const headSha = git(repo, ['rev-parse', 'HEAD']);
-
-    const tamperedRun = spawnSync(process.execPath, ['scripts/risk-tier.mjs'], {
-      cwd: repo,
-      encoding: 'utf8',
-      env: { PATH: process.env.PATH ?? '' },
+    fs.writeFileSync(path.join(repo, 'scripts/risk-tier.mjs'), "console.log('ran-base-script');\n");
+    const labeled = await runLabelStep({
+      script: labelStepScript(workflow),
+      repo,
+      runnerTemp,
+      body: '- [x] high — config\n',
+      onRequest: labelApi([], () => ({
+        status: 200,
+        body: JSON.stringify([
+          { status: 'renamed', filename: 'docs/REVIEW.md', previous_filename: 'REVIEW.md' },
+        ]),
+      })),
     });
-    assert.equal(tamperedRun.status, 0, tamperedRun.stderr);
-    assert.match(tamperedRun.stdout, /tampered-pr-script/);
-    assert.match(tamperedRun.stdout, /Computed risk tier: low/);
+    assert.equal(labeled.status, 0, `${labeled.stderr}\n${labeled.stdout}`);
+    assert.match(labeled.stdout, /missing scripts\/risk-tier\.mjs or risk-tiers\. Fail closed as high/);
+    assert.match(labeled.stdout, /high\tREVIEW\.md/);
+    assert.match(labeled.stdout, /high\tdocs\/REVIEW\.md/);
+    assert.match(labeled.stdout, /Label: risk:high/);
+    assert.doesNotMatch(labeled.stdout, /ran-base-script/);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(runnerTemp, { recursive: true, force: true });
+  }
+});
 
-    const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
+test('a malicious yarnrc in the pull request is never executed', async () => {
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/risk-tier.yml'), 'utf8');
+  const label = jobBlock(workflow, 'risk-tier');
+  assert.doesNotMatch(label, /setup-node|\bnpm\b|\byarn\b|\bpnpm\b/);
+  assert.match(label, /github\.event\.pull_request\.base\.sha/);
+  assert.doesNotMatch(label, /head\.sha|github\.sha/);
+  assert.equal([...label.matchAll(/actions\/checkout@/g)].length, 1);
+  assert.doesNotMatch(labelStepScript(workflow), /\bgit\b/);
+
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-base-only-'));
+  const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'risk-tier-runner-'));
+  const bin = path.join(runnerTemp, 'bin');
+  const commandLog = path.join(runnerTemp, 'commands.log');
+  const yarnrc = 'yarn-path "./.yarn/releases/evil.cjs"\n';
+  try {
+    fs.mkdirSync(path.join(repo, 'scripts'));
+    fs.copyFileSync(fileURLToPath(new URL('./risk-tier.mjs', import.meta.url)), path.join(repo, 'scripts/risk-tier.mjs'));
+    fs.copyFileSync(path.join(root, 'risk-tiers'), path.join(repo, 'risk-tiers'));
+    fs.mkdirSync(bin);
+    writeCommand(bin, 'yarn');
+    writeCommand(bin, 'npm');
     const issueLabels = [];
     const labeled = await runLabelStep({
       script: labelStepScript(workflow),
       repo,
       runnerTemp,
-      baseSha,
-      headSha,
       body: '- [x] high — config\n',
-      onRequest(request) {
-        if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
-          return { status: 404, body: '' };
+      pathEnv: `${bin}:${process.env.PATH ?? ''}`,
+      extraEnv: { RISK_TIER_COMMAND_LOG: commandLog },
+      onRequest: labelApi(issueLabels, (request) => {
+        if ((request.rawUrl ?? '').includes('page=2')) {
+          return {
+            status: 200,
+            body: JSON.stringify([
+              {
+                status: 'renamed',
+                filename: 'src/lib/blog-next.ts',
+                previous_filename: 'src/lib/blog.ts',
+              },
+            ]),
+          };
         }
-        if (request.method === 'POST' && request.urlPath === '/repos/o/r/labels') {
-          return { status: 201, body: '{"name":"risk:high"}' };
-        }
-        if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
-          return { status: 200, body: JSON.stringify(issueLabels.map((name) => ({ name }))) };
-        }
-        if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
-          issueLabels.push('risk:high');
-          return { status: 200, body: '[{"name":"risk:high"}]' };
-        }
-        return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
-      },
+        return {
+          status: 200,
+          body: JSON.stringify([{ status: 'added', filename: '.yarnrc', patch: yarnrc }]),
+          headers: {
+            link: '</repos/o/r/pulls/6/files?per_page=100&page=2>; rel="next"',
+          },
+        };
+      }),
     });
     assert.equal(labeled.status, 0, `${labeled.stderr}\n${labeled.stdout}`);
-    assert.doesNotMatch(labeled.stdout, /tampered-pr-script/);
-    assert.match(labeled.stdout, /high\tscripts\/risk-tier\.mjs/);
+    assert.match(labeled.stdout, /medium\t\.yarnrc/);
+    assert.match(labeled.stdout, /high\tsrc\/lib\/blog\.ts/);
+    assert.match(labeled.stdout, /medium\tsrc\/lib\/blog-next\.ts/);
     assert.match(labeled.stdout, /Computed risk tier: high/);
     assert.match(labeled.stdout, /Label: risk:high/);
-    const extracted = fs.readFileSync(path.join(runnerTemp, 'risk-tier-base/scripts/risk-tier.mjs'), 'utf8');
-    assert.equal(extracted, realScript);
-    assert.notEqual(extracted, fs.readFileSync(path.join(repo, 'scripts/risk-tier.mjs'), 'utf8'));
+    assert.equal(fs.existsSync(path.join(repo, '.yarnrc')), false);
+    assert.equal(fs.existsSync(commandLog), false);
+    assert.doesNotMatch(labeled.stdout, /yarn-executed|npm-executed/);
+    assert.equal(yarnrc.includes('yarn-path'), true);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(runnerTemp, { recursive: true, force: true });
@@ -810,12 +885,22 @@ test('a missing base script fails closed and still checks the body', async () =>
     if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
       return { status: 200, body: '[{"name":"risk:high"}]' };
     }
+    if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+      return {
+        status: 200,
+        body: JSON.stringify([
+          { status: 'renamed', filename: 'docs/AGENTS.md', previous_filename: 'AGENTS.md' },
+        ]),
+      };
+    }
     return { status: 500, body: 'unexpected' };
   }
 
   const high = await runBootstrap('- [x] high — config\n', okHandler);
   assert.equal(high.status, 0, high.stderr);
   assert.match(high.stdout, /Fail closed as high/);
+  assert.match(high.stdout, /high\tAGENTS\.md/);
+  assert.match(high.stdout, /high\tdocs\/AGENTS\.md/);
   assert.match(high.stdout, /Label: risk:high/);
   assert.match(high.stdout, /PR body check passed \(checked high, computed high\)/);
   assert.ok(calls.includes('POST /repos/o/r/issues/6/labels'));

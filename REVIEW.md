@@ -95,10 +95,10 @@ If any commit lands after John approves, the PR goes back to him.
 
 ## Risk label
 
-The `risk:low`, `risk:medium`, or `risk:high` label is the source of truth. The workflow runs the base commit's `scripts/risk-tier.mjs` and `risk-tiers` against the changed paths and writes exactly one label. A checked box in the pull request body does not set the tier.
+The `risk:low`, `risk:medium`, or `risk:high` label is the source of truth. The label job checks out only the base commit and reads changed paths from the pull request files API, including a rename's previous name. It runs that commit's `scripts/risk-tier.mjs` and `risk-tiers`. Pull request files are not on that runner. A checked box in the pull request body does not set the tier.
 
 The check fails when no box is checked, or when the highest checked box is lower than the computed tier. The pull request tier is the highest tier among the changed files. A path that matches nothing in `risk-tiers` is medium.
 
-The base copy keeps these paths high even if the pull request edits `risk-tiers` or the script: `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.cursor/**`, `.claude/**`, `.github/pull_request_template.md`, `.github/**`, `risk-tiers`, and `scripts/risk-tier.mjs`. If the base commit has no script yet, the pull request is high. On `pull_request`, GitHub runs the pull request's own workflow file, so a pull request that edits the workflow can skip this check. The backstop is `CODEOWNERS` (`@johnhamlin`) plus branch protection that requires code-owner review.
+The base copy keeps these paths high even if the pull request edits `risk-tiers` or the script: `**/AGENTS.md`, `**/CLAUDE.md`, `**/REVIEW.md`, `.cursor/**`, `.claude/**`, `.github/pull_request_template.md`, `.github/**`, `risk-tiers`, and `scripts/risk-tier.mjs`. If the base commit has no script or no `risk-tiers` yet, the pull request is high. On `pull_request`, GitHub runs the pull request's own workflow file, so a pull request that edits the workflow can skip this check. The backstop is `CODEOWNERS` (`@johnhamlin`) plus branch protection that requires code-owner review.
 
 `node --test scripts/risk-tier.test.mjs` covers the tier rules. Review rules still come from `main`.

@@ -15,9 +15,9 @@
 /.env.* @johnhamlin
 .env @johnhamlin
 .env.* @johnhamlin
-/REVIEW.md @johnhamlin
-/CLAUDE.md @johnhamlin
-/AGENTS.md @johnhamlin
+**/REVIEW.md @johnhamlin
+**/CLAUDE.md @johnhamlin
+**/AGENTS.md @johnhamlin
 /.cursor/ @johnhamlin
 /.github/pull_request_template.md @johnhamlin
 /.claude/ @johnhamlin

@@ -20,9 +20,9 @@ high .env
 high .env.*
 high **/.env
 high **/.env.*
-high REVIEW.md
-high CLAUDE.md
-high AGENTS.md
+high **/REVIEW.md
+high **/CLAUDE.md
+high **/AGENTS.md
 high .cursor/**
 high .github/pull_request_template.md
 

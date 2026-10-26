@@ -1,6 +1,5 @@
 // Computes a pull request risk tier from changed paths and sets one risk:* label.
 
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -10,9 +9,9 @@ export const CHECK_SCRIPT = 'scripts/risk-tier.mjs';
 
 // These stay high even if risk-tiers maps them lower.
 export const ALWAYS_HIGH_GLOBS = [
-  'AGENTS.md',
-  'CLAUDE.md',
-  'REVIEW.md',
+  '**/AGENTS.md',
+  '**/CLAUDE.md',
+  '**/REVIEW.md',
   '.cursor/**',
   '.claude/**',
   '.github/pull_request_template.md',
@@ -241,37 +240,17 @@ export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel 
   return { plan, labels };
 }
 
-export function parseNameStatusZ(output) {
-  const parts = output.split('\0');
-  if (parts.length > 0 && parts[parts.length - 1] === '') parts.pop();
+export function filesFromPullEntries(entries) {
+  if (!Array.isArray(entries)) throw new Error('GitHub pull file list was not an array');
   const files = [];
-  let index = 0;
-  while (index < parts.length) {
-    const status = parts[index];
-    index += 1;
-    if (!status) continue;
-    if (status.startsWith('R') || status.startsWith('C')) {
-      const oldPath = parts[index];
-      const newPath = parts[index + 1];
-      index += 2;
-      if (oldPath) files.push(oldPath);
-      if (newPath) files.push(newPath);
-    } else {
-      const filePath = parts[index];
-      index += 1;
-      if (filePath) files.push(filePath);
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    if (typeof entry.filename === 'string' && entry.filename) files.push(entry.filename);
+    if (typeof entry.previous_filename === 'string' && entry.previous_filename) {
+      files.push(entry.previous_filename);
     }
   }
   return [...new Set(files)].sort();
-}
-
-export function changedFilesBetween(baseSha, headSha, root = repoRoot()) {
-  const output = execFileSync(
-    'git',
-    ['diff', '-z', '--name-status', '--find-renames', `${baseSha}...${headSha}`],
-    { cwd: root, encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
-  );
-  return parseNameStatusZ(output);
 }
 
 function assertSha(value, label) {
@@ -391,6 +370,17 @@ function createGitHub(env) {
         allow: [404],
       });
     },
+    async listPullFiles(number) {
+      const entries = [];
+      let url = `/repos/${repository}/pulls/${number}/files?per_page=100`;
+      while (url) {
+        const page = await request(url);
+        if (!Array.isArray(page.data)) throw new Error('GitHub pull file list was not an array');
+        entries.push(...page.data);
+        url = page.next;
+      }
+      return filesFromPullEntries(entries);
+    },
   };
 }
 
@@ -451,9 +441,9 @@ async function runPullRequest(rules, env) {
   if (!env.GITHUB_EVENT_PATH) throw new Error('GITHUB_EVENT_PATH is not set');
   const event = JSON.parse(fs.readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const pullRequest = pullRequestFromEvent(event);
-  const files = changedFilesBetween(pullRequest.baseSha, pullRequest.headSha);
-  const tier = printTierReport(files, rules);
   const github = createGitHub(env);
+  const files = await github.listPullFiles(pullRequest.number);
+  const tier = printTierReport(files, rules);
   const assessment = await reportTierResult({
     tier,
     body: pullRequest.body,
