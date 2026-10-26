@@ -9,6 +9,10 @@ high astro.config.mjs
 high .github/workflows/**
 high public/_headers
 high public/_redirects
+high public/_worker.js
+high public/_routes.json
+high functions/**
+high wrangler.*
 high package.json
 high package-lock.json
 high src/lib/blog.ts
@@ -24,6 +28,10 @@ high **/REVIEW.md
 high **/CLAUDE.md
 high **/AGENTS.md
 high .cursor/**
+high **/.cursor/**
+high **/.mcp.json
+high **/.cursorrules
+high **/GEMINI.md
 high .github/pull_request_template.md
 
 # Medium
@@ -39,6 +47,7 @@ low README.md
 
 # Always high even when a line above is lowered. Kept here so the map is complete.
 high .claude/**
+high **/.claude/**
 high .github/**
 high risk-tiers
 high scripts/risk-tier.mjs

@@ -63,21 +63,20 @@ export function claimedTier(body) {
   if (found.length !== 1) fail(BAD_BODY);
   return found[0];
 }
-function pathField(value) {
-  if (!value) fail(BAD_DIFF);
-  if (!value.startsWith('"')) return value;
-  const parsed = JSON.parse(value);
-  if (typeof parsed !== 'string' || !parsed) fail(BAD_DIFF);
-  return parsed;
-}
 export function pathsFromNameStatus(text) {
   if (typeof text !== 'string') fail(BAD_DIFF);
+  const parts = text.split('\0');
   const paths = [];
-  for (const raw of text.split(/\r?\n/)) {
-    if (!raw) continue;
-    const [status, left, right] = raw.split('\t');
-    paths.push(pathField(left));
-    if (/^[RC]/.test(status ?? '')) paths.push(pathField(right));
+  for (let i = 0; i < parts.length; i += 1) {
+    const status = parts[i];
+    if (!status) continue;
+    const left = parts[++i];
+    if (!left) fail(BAD_DIFF);
+    paths.push(left);
+    if (!/^[RC]/.test(status)) continue;
+    const right = parts[++i];
+    if (!right) fail(BAD_DIFF);
+    paths.push(right);
   }
   return paths;
 }
@@ -119,7 +118,7 @@ function git(args) {
 export function changedPaths(base, head) {
   if (!SHA.test(base ?? '') || !SHA.test(head ?? '')) fail(BAD_SHA);
   git(['fetch', '--no-tags', 'origin', base, head]);
-  const diff = git(['diff', '--name-status', '-M', `${base}...${head}`]);
+  const diff = git(['diff', '-z', '--name-status', '-M', `${base}...${head}`]);
   return pathsFromNameStatus(diff);
 }
 export function main() {

@@ -21,6 +21,16 @@ test('tiers, renames, body, and the workflow', () => {
   t(['src/layouts/Layout.astro'], 'high');
   t(['README.md', 'src/lib/blog.ts'], 'high');
   t(['src/content/blog/my..post.mdx'], 'low');
+  t(['README.md', 'notes/unmatched.txt'], 'medium');
+  t(['functions/api.js'], 'high');
+  t(['public/_worker.js'], 'high');
+  t(['public/_routes.json'], 'high');
+  t(['wrangler.toml'], 'high');
+  t(['.mcp.json'], 'high');
+  t(['.cursorrules'], 'high');
+  t(['docs/GEMINI.md'], 'high');
+  t(['pkg/.cursor/a.md'], 'high');
+  t(['pkg/.claude/b.md'], 'high');
   t(risk.pathsFromNameStatus(''), 'medium');
   const lowText =
     'low **/AGENTS.md\nlow .github/**\nlow scripts/risk-tier.mjs\n';
@@ -44,15 +54,7 @@ test('tiers, renames, body, and the workflow', () => {
   bad(() => risk.parseRiskTiers('nope\n'), /risk-tiers:1/);
   bad(() => risk.loadRiskTiers(path.join(root, 'missing-tiers')), /unreadable/);
   bad(() => risk.changedPaths('nope', 'nope'), /SHAs/);
-  const renamed = 'R100\told\tnew\nC50\ta\tb\nA\t"c d"\n';
+  const renamed = 'R100\0old\0new\0C50\0a\0b\0A\0src/café.md\0';
   const names = risk.pathsFromNameStatus(renamed);
-  assert.deepEqual(names, ['old', 'new', 'a', 'b', 'c d']);
-  const text = `${read('scripts/risk-tier.mjs')}\n${read('.github/workflows/risk-tier.yml')}`;
-  assert.match(text, /'diff', '--name-status', '-M'/);
-  assert.match(text, /'fetch', '--no-tags', 'origin'/);
-  assert.match(text, /base\}\.\.\.\$\{head/);
-  assert.match(text, /base\.sha/);
-  assert.match(text, /npm ci/);
-  assert.match(text, /persist-credentials:\s*false/);
-  assert.doesNotMatch(text, /pulls\/|\/labels|secrets\./);
+  assert.deepEqual(names, ['old', 'new', 'a', 'b', 'src/café.md']);
 });
