@@ -14,6 +14,8 @@
 - [ ] medium — ordinary product work
 - [ ] high — prices or calculator, schema or migrations, auth, CI or deploy, secrets, user data
 
+Which high-risk trigger applies? (for example CI/deploy or secrets)
+
 ## How to revert
 
 <!-- How to undo this change safely. -->

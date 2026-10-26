@@ -22,6 +22,8 @@ Docs or copy only.
 
 Requires the checklist items that apply, with proof in the PR.
 
+New blog posts and MDX pages count as low tier unless they add components or scripts. They still need the accessibility check.
+
 ### Medium
 
 Ordinary product work.
@@ -37,3 +39,5 @@ Requires all of the following:
 - John approves the merge.
 - Cross-model review.
 - Proof for every criterion.
+
+Cross-model review is an independent review by Claude Code and Codex. Each finding is fixed or closed with a one-line reason, recorded in a PR comment, with a cap of 3 rounds.
