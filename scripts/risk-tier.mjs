@@ -244,10 +244,6 @@ function riskTierName(label) {
       return 'medium';
     case 'risk:high':
       return 'high';
-    default: {
-      const unexpected = label;
-      throw new Error(`Unknown risk label: ${String(unexpected)}`);
-    }
   }
 }
 
@@ -270,7 +266,7 @@ async function bestEffortRemove(labels, removeLabel) {
 
 async function rereadRiskLabels(listLabels) {
   try {
-    return riskLabelsOn(await listLabels());
+    return await listLabels();
   } catch (error) {
     if (!isLabelWriteDenied(error)) throw error;
     throw new Error('Risk label update was denied (403) and the labels could not be re-read. Fail closed.');
@@ -293,19 +289,19 @@ export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel 
   } catch (error) {
     if (!isLabelWriteDenied(error)) throw error;
     const desired = riskLabel(tier);
-    let left = await rereadRiskLabels(listLabels);
+    let left = riskLabelsOn(await rereadRiskLabels(listLabels));
     if (changed || mergeBlockReason(left, tier)) {
       await bestEffortRemove(
         left.filter((label) => label !== desired),
         removeLabel,
       );
-      left = await rereadRiskLabels(listLabels);
+      left = riskLabelsOn(await rereadRiskLabels(listLabels));
       if (left.length > 1) {
         await bestEffortRemove(
           left.filter((label) => label !== desired),
           removeLabel,
         );
-        left = await rereadRiskLabels(listLabels);
+        left = riskLabelsOn(await rereadRiskLabels(listLabels));
       }
     }
     const blocked = mergeBlockReason(left, tier);
@@ -322,7 +318,7 @@ export async function applyRiskLabel({ tier, listLabels, addLabels, removeLabel 
     if (left.length === 1 && left[0] === desired) return { plan, labels: left };
     throw error;
   }
-  const labels = await listLabels();
+  const labels = await rereadRiskLabels(listLabels);
   assertSingleRiskLabel(labels, tier);
   return { plan, labels };
 }

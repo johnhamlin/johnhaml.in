@@ -1474,3 +1474,117 @@ test('an unsafe path, a full page cap, or invalid tiers still label high', async
   assert.match(bootCap.stdout, /Label: risk:high/);
   assert.doesNotMatch(bootCap.stdout, /^low\t/m);
 });
+
+function bootstrapIssueLabels(onIssueLabels) {
+  return (request) => {
+    if (request.method === 'GET' && request.urlPath.startsWith('/repos/o/r/pulls/6/files')) {
+      return { status: 200, body: JSON.stringify([{ filename: 'README.md' }]) };
+    }
+    if (request.method === 'GET' && request.urlPath === '/repos/o/r/labels/risk:high') {
+      return { status: 200, body: '{"name":"risk:high"}' };
+    }
+    const issue = onIssueLabels(request);
+    if (issue) return issue;
+    return { status: 500, body: `unexpected ${request.method} ${request.urlPath}` };
+  };
+}
+
+test('a 403 on the re-read after a successful label write fails the check', async () => {
+  let reads = 0;
+  const warnings = [];
+  await assert.rejects(
+    () =>
+      reportTierResult({
+        tier: 'high',
+        body: '- [x] high — config',
+        warn: (message) => warnings.push(message),
+        applyLabels: () =>
+          applyRiskLabel({
+            tier: 'high',
+            listLabels: async () => {
+              reads += 1;
+              if (reads === 1) return [];
+              throw new Error('GitHub API 403 for GET /repos/o/r/issues/6/labels: {}');
+            },
+            addLabels: async () => {},
+            removeLabel: async () => {
+              throw new Error('should not remove');
+            },
+          }),
+      }),
+    /could not be re-read/,
+  );
+  assert.equal(reads, 2);
+  assert.deepEqual(warnings, []);
+});
+
+test('a bootstrap re-read 403 after a successful add fails the check', async () => {
+  let reads = 0;
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        reads += 1;
+        if (reads === 1) return { status: 200, body: '[]' };
+        return { status: 403, body: '{"message":"Resource not accessible by integration"}' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /could not be re-read/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.equal(reads, 2);
+});
+
+test('a bootstrap re-read that shows a lower risk label fails the check', async () => {
+  let reads = 0;
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        reads += 1;
+        if (reads === 1) return { status: 200, body: '[]' };
+        return { status: 200, body: '[{"name":"risk:low"}]' };
+      }
+      if (request.method === 'POST' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        return { status: 200, body: '[{"name":"risk:high"}]' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /left risk:low, lower than computed tier high/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.equal(reads, 2);
+});
+
+test('a bootstrap re-read that shows two risk labels after a delete fails the check', async () => {
+  let reads = 0;
+  let deletes = 0;
+  const result = await runBootstrap(
+    '- [x] high — config\n',
+    bootstrapIssueLabels((request) => {
+      if (request.method === 'GET' && request.urlPath === '/repos/o/r/issues/6/labels') {
+        reads += 1;
+        return { status: 200, body: '[{"name":"risk:low"},{"name":"risk:high"}]' };
+      }
+      if (request.method === 'DELETE' && request.urlPath === '/repos/o/r/issues/6/labels/risk:low') {
+        deletes += 1;
+        return { status: 204, body: '' };
+      }
+      if (request.method === 'DELETE' && request.urlPath === '/repos/o/r/issues/6/labels/risk:high') {
+        return { status: 500, body: 'must not delete the desired label' };
+      }
+      return null;
+    }),
+  );
+  assert.equal(result.status, 1, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /conflicting labels: risk:low, risk:high/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PR body check passed|Continuing with the body check/);
+  assert.equal(deletes, 1);
+  assert.equal(reads, 2);
+});
