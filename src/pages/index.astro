@@ -17,9 +17,15 @@ import ThemeSwitch from '../components/react/ThemeSwitch';
 import { getEntry, render } from 'astro:content';
 
 const introEntry = await getEntry('text', 'intro');
+if (!introEntry) {
+  throw new Error('Missing content entry: text/intro');
+}
 const { Content: IntroContent } = await render(introEntry);
 
 const aboutEntry = await getEntry('text', 'about');
+if (!aboutEntry) {
+  throw new Error('Missing content entry: text/about');
+}
 const { Content: AboutContent } = await render(aboutEntry);
 ---
 
