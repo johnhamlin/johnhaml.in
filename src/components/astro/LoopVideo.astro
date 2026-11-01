@@ -1,0 +1,88 @@
+---
+interface Props {
+  src: string;
+  poster: string;
+  alt: string;
+  eager?: boolean;
+  class?: string;
+}
+
+const { src, poster, alt, eager = false, class: className } = Astro.props;
+---
+
+<div
+  data-loop-video
+  class:list={[
+    'relative overflow-hidden rounded-lg border border-black/5 bg-white shadow-lg shadow-black/5 dark:border-white/10',
+    className,
+  ]}
+>
+  <img
+    src={poster}
+    alt={alt}
+    width="1200"
+    height="675"
+    loading={eager ? 'eager' : 'lazy'}
+    decoding="async"
+    class="block h-auto w-full"
+  />
+  <video
+    src={src}
+    aria-label={alt}
+    width="1200"
+    height="675"
+    muted
+    loop
+    playsinline
+    preload="none"
+    hidden
+    class="absolute inset-0 h-full w-full"></video>
+  <button
+    type="button"
+    aria-label="Pause animation"
+    aria-pressed="false"
+    hidden
+    class="group absolute bottom-2 right-2 rounded-full border border-black/10 bg-white/80 p-2 text-gray-900 shadow-md backdrop-blur transition hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 dark:border-white/10 dark:bg-gray-900/80 dark:text-white dark:focus-visible:ring-white"
+  >
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" class="h-3.5 w-3.5 group-aria-pressed:hidden">
+      <path d="M4 3h3v10H4zM9 3h3v10H9z"></path>
+    </svg>
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" class="hidden h-3.5 w-3.5 group-aria-pressed:block">
+      <path d="M5 3l8 5-8 5z"></path>
+    </svg>
+  </button>
+</div>
+
+<script>
+  // The poster img is the fallback: no JS and reduced motion never reveal or play the video.
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const boxes = document.querySelectorAll('[data-loop-video]');
+
+  function sync(box: Element) {
+    // Not gated on inView so Tab reaches the button off-screen. An unloaded video paints nothing over the poster.
+    const shown = !reducedMotion.matches;
+    const paused = box.hasAttribute('data-paused');
+    const video = box.querySelector('video')!;
+    const button = box.querySelector('button')!;
+    video.hidden = button.hidden = !shown;
+    box.querySelector('img')!.ariaHidden = shown ? 'true' : null;
+    button.ariaPressed = String(paused);
+    if (shown && !paused && box.hasAttribute('data-in-view')) video.play().catch(() => {});
+    else video.pause();
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    for (const { target, isIntersecting } of entries) {
+      target.toggleAttribute('data-in-view', isIntersecting);
+      sync(target);
+    }
+  });
+  boxes.forEach((box) => {
+    box.querySelector('button')!.addEventListener('click', () => {
+      box.toggleAttribute('data-paused');
+      sync(box);
+    });
+    observer.observe(box);
+  });
+  reducedMotion.addEventListener('change', () => boxes.forEach(sync));
+</script>

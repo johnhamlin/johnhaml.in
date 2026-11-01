@@ -1,15 +1,18 @@
 ---
 import BlogLayout from '../../layouts/BlogLayout.astro';
 import PostList from '../../components/astro/PostList.astro';
+import LoopVideo from '../../components/astro/LoopVideo.astro';
 import { BLOG_DESCRIPTION, getVisiblePosts } from '../../lib/blog';
 
 const posts = await getVisiblePosts();
 ---
 
 <BlogLayout title="Blog | John Hamlin" description={BLOG_DESCRIPTION}>
-  <header class="mb-10 text-center">
-    <h1 class="text-3xl font-medium">Blog</h1>
-    <p class="mx-auto mt-3 max-w-xl text-gray-600 dark:text-gray-300">{BLOG_DESCRIPTION}</p>
+  <header class="mb-12 text-center">
+    <h1 class="text-4xl font-medium sm:text-5xl">Blog</h1>
+    <p class="mx-auto mt-4 max-w-xl text-xl font-medium leading-[1.5] text-gray-700 dark:text-gray-300 sm:text-2xl">
+      {BLOG_DESCRIPTION}
+    </p>
     <p class="mt-3">
       <a
         href="/rss.xml"
@@ -18,6 +21,17 @@ const posts = await getVisiblePosts();
         RSS feed
       </a>
     </p>
+    <figure class="mt-8">
+      <LoopVideo
+        src="/factory-migration.mp4"
+        poster="/factory-migration.webp"
+        alt="An overnight migration: backup, a permission failure, automatic rollback, a 25-line fix, a rerun, and done by morning."
+        eager
+      />
+      <figcaption class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+        Overnight, an agent hit a permission error, rolled back, shipped a 25-line fix, and finished by morning.
+      </figcaption>
+    </figure>
   </header>
 
   {
