@@ -20,7 +20,7 @@ export const factoryTiles: readonly FactoryTile[] = [
     media: {
       src: '/factory-reviews.mp4',
       poster: '/factory-reviews.webp',
-      alt: 'Pull requests passing EM, automated, and security reviews. Three merge on their own and one waits for a human.',
+      alt: 'Three changes pass every review and merge; one touching security waits for John.',
     },
     className: 'md:col-span-2',
   },
