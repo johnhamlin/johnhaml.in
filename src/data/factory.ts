@@ -16,7 +16,7 @@ export const factoryTiles: readonly FactoryTile[] = [
   },
   {
     title: 'Reviews',
-    body: 'Every pull request gets three reviews: the EM, an automated reviewer, and a security pass. Small green changes merge on their own. Risky ones wait for me.',
+    body: 'Every pull request gets three reviews: the EM, an automated reviewer, and a security pass. Small, safe changes merge once checks pass and a bot reviews them. Anything touching auth, payments, migrations, secrets or new dependencies waits for me.',
     media: {
       src: '/factory-reviews.mp4',
       poster: '/factory-reviews.webp',
@@ -26,7 +26,7 @@ export const factoryTiles: readonly FactoryTile[] = [
   },
   {
     title: 'Home-server CI',
-    body: 'Builds and checks run on a server at home, so every change is tested before anyone reads it.',
+    body: 'Builds and tests run on a box in my house, so every change is checked before I read it.',
   },
   {
     title: 'Wiki',
