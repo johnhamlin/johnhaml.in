@@ -110,7 +110,7 @@ function PrRow({ i, title, run, compact }: { i: number; title: string; run: Run;
   )
 }
 
-const FILLER = [150, 120, 172, 136]
+const FILLER = [150, 120, 172, 136, 128, 160, 112]
 
 export default function Clip1() {
   return (
@@ -139,7 +139,7 @@ export default function Clip1() {
   )
 }
 
-function Side() {
+export function Side() {
   return (
     <nav className="cf-side">
       {[72, 96, 64, 84, 68].map((w, i) => (

@@ -14,8 +14,9 @@ const LAYOUTS = [
   { name: '1x1', viewport: { width: 540, height: 540 }, gifWidth: 720 },
 ]
 const out = process.argv[2] && resolve(process.argv[2])
-if (!out) {
-  console.error('usage: npm run stageshow:render -- <output dir>')
+const clip = process.argv[3] ?? '1'
+if (!out || !/^\d+$/.test(clip)) {
+  console.error('usage: npm run stageshow:render -- <output dir> [clip number, default 1]')
   process.exit(2)
 }
 
@@ -37,7 +38,7 @@ async function recordLoop(browser, url, layout, frames) {
   let failure = null
   page.on('pageerror', (e) => (failure ??= e.message))
   page.on('response', (r) => r.status() >= 400 && (failure ??= `HTTP ${r.status()} for ${r.url()}`))
-  await page.goto(`${url}?render=${FPS}`)
+  await page.goto(`${url}?clip=${clip}&render=${FPS}`)
   // Polled from Node: the virtual clock owns the page's timers and rAF, which waitForFunction relies on.
   const deadline = Date.now() + STARTUP_MS
   while (!(await page.evaluate(() => !!(window.__stageshow?.clock && document.querySelector('.ss-stage'))))) {
@@ -72,15 +73,15 @@ try {
     const frames = join(work, layout.name)
     mkdirSync(frames)
     const loop = await recordLoop(browser, url, layout, frames)
-    const mp4 = join(out, `clip1-${layout.name}.mp4`)
-    const gif = join(out, `clip1-${layout.name}.gif`)
+    const mp4 = join(out, `clip${clip}-${layout.name}.mp4`)
+    const gif = join(out, `clip${clip}-${layout.name}.gif`)
     ffmpeg('-framerate', String(FPS), '-start_number', String(loop.start), '-i', join(frames, '%05d.png'), '-frames:v', String(loop.count), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-movflags', '+faststart', mp4)
     ffmpeg('-i', mp4, '-vf', `fps=15,scale=${layout.gifWidth}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=sierra2_4a`, '-loop', '0', gif)
     console.log(`${layout.name}: ${loop.count} frames (${(loop.count / FPS).toFixed(2)}s) -> ${mp4} ${mb(mp4)}, ${gif} ${mb(gif)}`)
   }
-  const poster = join(out, 'clip1-poster.png')
+  const poster = join(out, `clip${clip}-poster.png`)
   const page = await openPage(browser, LAYOUTS[0].viewport, { reducedMotion: 'reduce' })
-  await page.goto(url)
+  await page.goto(`${url}?clip=${clip}`)
   await page.waitForSelector('.ss-stage', { timeout: STARTUP_MS })
   await page.evaluate(() => document.fonts.ready)
   await page.waitForTimeout(1000)

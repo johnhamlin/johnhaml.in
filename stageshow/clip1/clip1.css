@@ -21,11 +21,11 @@
 .cf-row[data-status='merged'] .cf-lead { color: var(--ss-success); }
 .cf-row[data-status='waiting'] .cf-lead { color: var(--ss-warning); }
 
-.cf-sub, .cf-verdicts { display: flex; align-items: center; gap: 12px; }
+.cf-sub, .cf-verdicts { display: flex; align-items: center; gap: 12px; font-size: 12px; }
 .cf .ss-stage[data-layout='compact'] .cf-verdicts { gap: 8px; }
 .cf .ss-stage[data-layout='compact'] .cf-verdict { gap: 4px; }
 .cf .ss-stage[data-layout='compact'] .cf-author { display: none; }
-.cf-verdict { display: inline-flex; align-items: center; gap: 5px; color: var(--ss-text); transition: color 0.3s ease; }
+.cf-verdict { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; color: var(--ss-text); transition: color 0.3s ease; }
 .cf-verdict[data-v='flag'] { color: var(--ss-warning-text); }
 .cf-mark { display: grid; place-items: center; width: 14px; height: 14px; }
 .cf-mark > svg { opacity: 0; }
