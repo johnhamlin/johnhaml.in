@@ -1,0 +1,53 @@
+# Path tiers from REVIEW.md. Format: <low|medium|high> <glob>
+# The glob is the rest of the line and may contain spaces. No inline comment.
+# * matches one path segment. ** crosses segments.
+# The highest matching glob wins. A path that matches nothing is medium.
+# scripts/risk-tier.mjs forces ALWAYS_HIGH_GLOBS over this file.
+
+# High
+high astro.config.mjs
+high .github/workflows/**
+high public/_headers
+high public/_redirects
+high public/_worker.js
+high public/_routes.json
+high functions/**
+high wrangler.*
+high package.json
+high package-lock.json
+high src/lib/blog.ts
+high src/content.config.ts
+high src/pages/rss.xml.ts
+high src/layouts/Layout.astro
+high src/env.d.ts
+high .env
+high .env.*
+high **/.env
+high **/.env.*
+high **/REVIEW.md
+high **/CLAUDE.md
+high **/AGENTS.md
+high .cursor/**
+high **/.cursor/**
+high **/.mcp.json
+high **/.cursorrules
+high **/GEMINI.md
+high .github/pull_request_template.md
+
+# Medium
+medium src/components/**
+medium src/layouts/**
+medium src/styles/**
+medium src/pages/**
+
+# Low
+low src/content/blog/**
+low src/content/text/**
+low README.md
+
+# Always high even when a line above is lowered. Kept here so the map is complete.
+high .claude/**
+high **/.claude/**
+high .github/**
+high risk-tiers
+high scripts/risk-tier.mjs
