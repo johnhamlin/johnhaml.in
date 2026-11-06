@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 import { useSectionInView } from '../../hooks/useSectionInView';
 import { motion, useAnimate } from 'framer-motion';
-import { BsArrowRight, BsLinkedin } from 'react-icons/bs';
+import { BsArrowRight, BsLinkedin, BsTwitterX } from 'react-icons/bs';
 import { FaGithubSquare } from 'react-icons/fa';
-import { HiDownload } from 'react-icons/hi';
 
 interface IntroProps {
   children?: ReactNode;
@@ -86,22 +85,23 @@ export default function Intro({ children }: IntroProps) {
         >
           {/* Contact Me Button */}
           <a
-            href={'mailto:johnhamlin@gmail.com?subject=Hello%20John!'}
+            href="mailto:john@jellifish.shop"
             className="group flex items-center gap-2 rounded-full bg-gray-900 px-7 py-3 text-white outline-none transition-all hover:scale-110 hover:bg-gray-950 focus:scale-110 active:scale-105"
           >
             Email me{' '}
             <BsArrowRight className="opacity-70 transition group-hover:translate-x-1" />
           </a>
 
-          {/* Resume Button */}
+          {/* X Button */}
           <a
-            className="group flex items-center gap-2 rounded-full border border-black/10 bg-white px-7 py-3 outline-none transition hover:scale-110 focus:scale-110 active:scale-105 dark:bg-white/10"
-            href="/John_Hamlin_Resume.pdf"
-            download="John_Hamlin_Resume.pdf"
+            href="https://x.com/johnhamlin"
+            className="flex items-center justify-center gap-2 rounded-full border border-black/10 bg-white p-4 text-[1.35rem] text-gray-900 transition hover:scale-[1.15] hover:text-gray-900 focus:scale-[1.15] active:scale-105 dark:bg-white/10 dark:text-white/60"
             target="_blank"
+            rel="noopener noreferrer"
+            aria-label="@johnhamlin"
           >
-            Résumé
-            <HiDownload className="opacity-60 transition group-hover:scale-y-125" />
+            <BsTwitterX />
+            <span className="text-lg sm:hidden">@johnhamlin</span>
           </a>
 
           {/* LinkedIn Button */}
