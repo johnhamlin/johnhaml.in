@@ -11,7 +11,7 @@ interface Props {
   imageAlt?: string;
 }
 
-const defaultTitle = 'John Hamlin, cofounder of Jellifish';
+const defaultTitle = 'John Hamlin';
 const defaultDescription =
   'Cofounder and tech lead at Jellifish, making shopping for interiors clearer, starting with wallpaper. I build with a software factory of AI agents.';
 
@@ -50,7 +50,9 @@ const twitterImage = image ? absolute(image) : `${baseUrl}/twitter-image.png`;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Primary Meta Tags -->
