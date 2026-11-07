@@ -11,11 +11,9 @@ interface Props {
   imageAlt?: string;
 }
 
-const defaultTitle = 'John Hamlin - Senior Software Engineer';
+const defaultTitle = 'John Hamlin, cofounder of Jellifish';
 const defaultDescription =
-  'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo. I live in Raleigh, North Carolina.';
-const defaultSocialDescription =
-  'I build full-stack web apps in TypeScript, React, Next.js and Node and cross-platform mobile apps in React Native and Expo.';
+  'Cofounder and tech lead at Jellifish, making shopping for interiors clearer, starting with wallpaper. I build with a software factory of AI agents.';
 
 const {
   title = defaultTitle,
@@ -26,14 +24,12 @@ const {
   modifiedTime,
   tags = [],
   image,
-  imageAlt = 'John Hamlin - Senior Software Engineer',
+  imageAlt = defaultTitle,
 } = Astro.props;
 
 const site = Astro.site ?? new URL('https://johnhamlin.com');
 const baseUrl = site.href.replace(/\/$/, '');
 const pageUrl = canonicalURL ?? baseUrl;
-const socialDescription =
-  description === defaultDescription ? defaultSocialDescription : description;
 const GA_ID = import.meta.env.PUBLIC_GA_ID;
 
 function absolute(src: string): string {
@@ -63,7 +59,7 @@ const twitterImage = image ? absolute(image) : `${baseUrl}/twitter-image.png`;
     <meta name="description" content={description} />
     <meta
       name="keywords"
-      content="John Hamlin, Software Engineer, TypeScript, React, Next.js, Node.js, Full Stack Developer, Raleigh"
+      content="John Hamlin, Jellifish, Cofounder, Tech Lead, TypeScript, React, Next.js, Node.js, Full Stack Developer, Raleigh"
     />
     <meta name="author" content="John Hamlin" />
     <meta name="creator" content="John Hamlin" />
@@ -74,7 +70,7 @@ const twitterImage = image ? absolute(image) : `${baseUrl}/twitter-image.png`;
     <meta property="og:url" content={pageUrl} />
     <meta property="og:site_name" content="John Hamlin" />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content={socialDescription} />
+    <meta property="og:description" content={description} />
     <meta property="og:image" content={ogImage} />
     {
       !image && (
@@ -109,7 +105,7 @@ const twitterImage = image ? absolute(image) : `${baseUrl}/twitter-image.png`;
     <meta name="twitter:creator" content="@johnhamlin" />
     <meta name="twitter:url" content={pageUrl} />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={socialDescription} />
+    <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={twitterImage} />
     <meta name="twitter:image:alt" content={imageAlt} />
 
