@@ -7,7 +7,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "stageshow:fetch": "node scripts/stageshow-fetch.mjs",
+    "stageshow:render": "node scripts/stageshow-render.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
@@ -29,9 +31,13 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@types/react-vertical-timeline-component": "^3.3.6",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
+    "lucide-react": "^0.468.0",
+    "playwright-core": "~1.48.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vite": "^6.4.5"
   }
 }
