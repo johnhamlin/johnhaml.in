@@ -92,3 +92,17 @@ If any commit lands after John approves, the PR goes back to him.
 - https://sre.google/sre-book/introduction/
 - https://code.claude.com/docs/en/code-review
 - https://claude.dev/blog/solving-code-review-at-anthropic/
+
+## Risk check
+
+`.github/workflows/risk-tier.yml` computes the tier from the changed paths and `risk-tiers`. It does not read or write a label. The pull request body must check exactly one of `low`, `medium`, or `high` under `## Risk tier`. The check fails when that tier is missing or cannot be parsed, or when it is lower than the computed tier. A checked box does not set the tier.
+
+The job checks out only the base commit and installs dependencies from that commit's lockfile, including `minimatch`. It fetches the base and head commits and reads `git diff --name-status -M` (three dots). A rename or copy counts both paths. The check never checks out the pull request and does not call the pulls or files API. `minimatch` matches each glob with `dot` and case-insensitive options. The highest matching glob wins. A path that matches nothing is medium. `CODEOWNERS` patterns stay case-sensitive.
+
+These paths stay high even if `risk-tiers` maps them lower: `AGENTS.md`, `CLAUDE.md`, `REVIEW.md`, `.cursor/**`, `.claude/**`, `.github/**` (including workflows), `risk-tiers`, and `scripts/risk-tier.mjs`.
+
+A missing or unreadable `risk-tiers`, a changed path that contains `\` or a `..` segment, or any other error fails the check. Paths are matched literally and are not normalized.
+
+On `pull_request`, GitHub runs this workflow file from the pull request, so a pull request that edits it can skip the check. The backstop is `CODEOWNERS` (`@johnhamlin`) plus branch protection that requires code-owner review.
+
+`node --test scripts/risk-tier.test.mjs` covers the tier rules. Review rules still come from `main`.
